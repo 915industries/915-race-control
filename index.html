@@ -88,11 +88,11 @@
   /* === EXPERIMENTAL RIBBON === */
   .exp-ribbon {
     background: repeating-linear-gradient(135deg, var(--race-red) 0px, var(--race-red) 14px, #b01028 14px, #b01028 28px);
-    border-bottom: 4px solid #ff2040;
-    border-top: 4px solid #ff2040;
-    padding: 18px 16px;
+    border-bottom: 6px solid #ff2040;
+    border-top: 6px solid #ff2040;
+    padding: 28px 16px;
     text-align: center;
-    font-family: var(--display); font-size: 28px; font-weight: 900;
+    font-family: var(--display); font-size: 56px; font-weight: 900;
     font-style: italic;
     letter-spacing: 0.15em; text-transform: uppercase;
     color: #fff; flex-shrink: 0;
@@ -128,13 +128,13 @@
   .hero-center { flex: 1; text-align: center; }
   .hero-team {
     font-family: var(--display); font-weight: 900; font-style: italic;
-    font-size: 24px; letter-spacing: 0.06em; line-height: 1.05;
+    font-size: 36px; letter-spacing: 0.06em; line-height: 1.05;
     text-transform: uppercase;
   }
   .hero-team-racing {
     font-family: var(--display); font-weight: 700; font-style: italic;
-    font-size: 14px; letter-spacing: 0.25em; color: var(--race-red);
-    text-transform: uppercase; margin-top: 2px;
+    font-size: 22px; letter-spacing: 0.25em; color: var(--race-red);
+    text-transform: uppercase; margin-top: 4px;
   }
   .hero-divider {
     width: 100%; height: 1px;
@@ -147,19 +147,19 @@
   }
   .hero-roles {
     display: flex; gap: 16px;
-    font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    font-family: var(--mono); font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase;
   }
   .hero-role { color: var(--muted); }
   .hero-role span { color: var(--text); font-weight: 700; }
   .hero-vehicle {
-    font-family: var(--mono); font-size: 9px; color: var(--muted);
-    letter-spacing: 0.05em;
+    font-family: var(--mono); font-size: 16px; color: var(--muted);
+    letter-spacing: 0.05em; font-weight: 700;
   }
   .hero-tagline {
     font-family: var(--display); font-weight: 700; font-style: italic;
-    font-size: 10px; letter-spacing: 0.12em; color: var(--race-red);
+    font-size: 18px; letter-spacing: 0.12em; color: var(--race-red);
     text-transform: uppercase; text-align: center;
-    margin-top: 8px; opacity: 0.8; position: relative; z-index: 1;
+    margin-top: 10px; opacity: 0.9; position: relative; z-index: 1;
   }
 
   .section-label {
@@ -292,8 +292,10 @@
     color: var(--text); font-family: var(--mono); font-weight: 700;
   }
   .start-btn.armed { border-color: var(--race-red); background: var(--race-red-dim); color: var(--race-red); }
-  .countdown { font-family: var(--mono); font-size: 80px; font-weight: 700; text-align: center; letter-spacing: -0.04em; color: var(--amber); }
-  .countdown.go { color: var(--green); font-size: 64px; }
+  .countdown { font-family: var(--mono); font-size: 120px; font-weight: 700; text-align: center; letter-spacing: -0.04em; color: var(--text); transition: color 0.15s; }
+  .countdown.red { color: var(--red); }
+  .countdown.yellow { color: var(--amber); }
+  .countdown.go { color: var(--green); font-size: 100px; }
 
   /* === RACE SCREEN === */
   #race { background: #000; }
@@ -357,7 +359,7 @@
   .cell-value.warn { color: var(--amber); }
   .cell-value.danger { color: var(--red); animation: pulse 0.6s infinite; }
   @keyframes pulse { 50% { opacity: 0.4; } }
-  .meta-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; background: #050505; }
+  .meta-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; background: #050505; }
   .meta-cell { padding: 10px 8px; text-align: center; border-right: 1px solid var(--edge); }
   .meta-cell:last-child { border-right: none; }
   .meta-value { font-family: var(--mono); font-size: 16px; font-weight: 700; }
@@ -493,7 +495,7 @@
       <span class="gps-stat" id="gpsStatSetup">NO FIX</span>
     </div>
   </div>
-  <div class="exp-ribbon">Experimental &middot; Not For Public Release &middot; v3.0</div>
+  <div class="exp-ribbon">Experimental &middot; Not For Public Release &middot; V1.0</div>
   <div class="body">
     <div class="hero-card">
       <div class="hero-top">
@@ -508,6 +510,7 @@
           <svg width="28" height="22" viewBox="0 0 32 26" style="transform:scaleX(-1)"><path d="M2 2L6 2L6 24L2 24Z" fill="#888"/><rect x="6" y="2" width="5" height="5" fill="#fff"/><rect x="11" y="2" width="5" height="5" fill="#000" stroke="#333" stroke-width="0.5"/><rect x="16" y="2" width="5" height="5" fill="#fff"/><rect x="21" y="2" width="5" height="5" fill="#000" stroke="#333" stroke-width="0.5"/><rect x="6" y="7" width="5" height="5" fill="#000" stroke="#333" stroke-width="0.5"/><rect x="11" y="7" width="5" height="5" fill="#fff"/><rect x="16" y="7" width="5" height="5" fill="#000" stroke="#333" stroke-width="0.5"/><rect x="21" y="7" width="5" height="5" fill="#fff"/><rect x="6" y="12" width="5" height="5" fill="#fff"/><rect x="11" y="12" width="5" height="5" fill="#000" stroke="#333" stroke-width="0.5"/><rect x="16" y="12" width="5" height="5" fill="#fff"/><rect x="6" y="17" width="5" height="5" fill="#000" stroke="#333" stroke-width="0.5"/><rect x="11" y="17" width="5" height="5" fill="#fff"/></svg>
         </div>
       </div>
+      <div class="hero-tagline">FAST CARS. REAL DATA. ZERO EXCUSES.</div>
       <div class="hero-divider"></div>
       <div class="hero-meta">
         <div class="hero-roles">
@@ -516,7 +519,6 @@
         </div>
         <div class="hero-vehicle">2018 SRT Durango</div>
       </div>
-      <div class="hero-tagline">FAST CARS. REAL DATA. ZERO EXCUSES.</div>
     </div>
 
     <div class="section-label">Race</div>
@@ -613,7 +615,7 @@
       <span class="gps-stat" id="gpsStatPre">NO FIX</span>
     </div>
   </div>
-  <div class="exp-ribbon">Experimental &middot; Not For Public Release &middot; v3.0</div>
+  <div class="exp-ribbon">Experimental &middot; Not For Public Release &middot; V1.0</div>
   <div class="body">
     <div class="prestage-label">GPS Time of Day (UTC)</div>
     <div class="prestage-time" id="gpsClock">&mdash;:&mdash;:&mdash;</div>
@@ -671,6 +673,7 @@
     </div>
     <div class="meta-grid">
       <div class="meta-cell"><div class="cell-label">Dist Left</div><div class="meta-value" id="distLeft">&mdash;</div></div>
+      <div class="meta-cell"><div class="cell-label">Dist Done</div><div class="meta-value" id="distDone">&mdash;</div></div>
       <div class="meta-cell"><div class="cell-label">Time Left</div><div class="meta-value" id="timeLeft">&mdash;</div></div>
       <div class="meta-cell"><div class="cell-label">Elapsed</div><div class="meta-value" id="elapsed">&mdash;</div></div>
     </div>
@@ -730,7 +733,7 @@
     </div>
     <div class="brand-right"><span class="gps-stat" id="doneRaceInfo">&mdash;</span></div>
   </div>
-  <div class="exp-ribbon">Experimental &middot; Not For Public Release &middot; v3.0</div>
+  <div class="exp-ribbon">Experimental &middot; Not For Public Release &middot; V1.0</div>
   <div class="body">
     <div class="result-hero">
       <div class="label">Final Time Delta</div>
@@ -1311,6 +1314,7 @@ function enterPrestage() {
   renderStartPicker();
   if (!prestageTimer) prestageTimer = setInterval(tickPrestage, 100);
 }
+let lastSpokenCountdown = -1;
 function tickPrestage() {
   document.getElementById('gpsClock').textContent = fmtClock(nowUtcMs());
   if (state.armedStartUtcMs !== null) {
@@ -1318,10 +1322,33 @@ function tickPrestage() {
     const cEl = document.getElementById('countdown');
     if (remainingMs > 0) {
       const remSec = remainingMs / 1000;
-      cEl.classList.remove('go');
+      cEl.classList.remove('go', 'red', 'yellow');
       cEl.textContent = (remSec > 10 ? remSec.toFixed(1) : remSec.toFixed(2)) + 's';
-    } else { cEl.classList.add('go'); cEl.textContent = 'GO'; launchRace(); }
-  } else { document.getElementById('countdown').textContent = '\u2014'; }
+      // Color stages: >15s default, 15-10s red, 10-0.2s yellow, <0.2s green
+      if (remSec <= 0.2) cEl.classList.add('go');
+      else if (remSec <= 10) cEl.classList.add('yellow');
+      else if (remSec <= 15) cEl.classList.add('red');
+      // Audio countdown callouts
+      const wholeSecRemain = Math.ceil(remSec);
+      const callouts = [60, 30, 20, 10, 5, 4, 3, 2, 1];
+      for (const c of callouts) {
+        if (wholeSecRemain === c && lastSpokenCountdown !== c) {
+          lastSpokenCountdown = c;
+          if (c >= 10) speak(c + ' seconds', true);
+          else speak('' + c, true);
+          break;
+        }
+      }
+    } else {
+      cEl.classList.remove('red', 'yellow');
+      cEl.classList.add('go'); cEl.textContent = 'GO';
+      if (lastSpokenCountdown !== 0) { lastSpokenCountdown = 0; speak('GO', true); }
+      launchRace();
+    }
+  } else {
+    document.getElementById('countdown').textContent = '\u2014';
+    lastSpokenCountdown = -1;
+  }
 }
 function renderStartPicker() {
   const picker = document.getElementById('startPicker');
@@ -1435,6 +1462,7 @@ function tickRace() {
 
   document.getElementById('avgSpd').textContent = avgMph > 0 ? avgMph.toFixed(1) : '\u2014';
   document.getElementById('distLeft').textContent = distRemainMi.toFixed(2) + ' mi';
+  document.getElementById('distDone').textContent = state.distanceMi.toFixed(2) + ' mi';
   document.getElementById('timeLeft').textContent = fmtTime(Math.max(timeRemainSec, 0));
   document.getElementById('elapsed').textContent = fmtTime(elapsedSec);
   document.getElementById('elapsedTop').textContent = fmtTime(elapsedSec);
@@ -1555,7 +1583,7 @@ function exportMotionCsv() {
 function exportGpx() {
   const startIso = new Date(state.startedAtMs).toISOString();
   let gpx = '<?xml version="1.0" encoding="UTF-8"?>\n';
-  gpx += '<gpx version="1.1" creator="915 Race Control v3.0" xmlns="http://www.topografix.com/GPX/1/1">\n';
+  gpx += '<gpx version="1.1" creator="915 Race Control V1.0" xmlns="http://www.topografix.com/GPX/1/1">\n';
   gpx += '  <metadata><name>' + RACES[state.race].name + ' - ' + state.classSpeed + ' mph</name><time>' + startIso + '</time></metadata>\n';
   gpx += '  <trk>\n    <name>915RC Race Run</name>\n    <trkseg>\n';
   state.samples.forEach(s => {
@@ -1578,7 +1606,7 @@ function exportJson() {
   const elapsedSec = (nowUtcMs() - state.startedAtMs) / 1000;
   const perfectSec = (r.distance_mi / state.classSpeed) * 3600;
   const obj = {
-    version: '3.0',
+    version: '1.0',
     generator: '915 Race Control',
     team: 'Zeitler / Wolfe Racing',
     vehicle: '2018 SRT Durango',
@@ -1661,7 +1689,7 @@ function exportReport() {
     'table{width:100%;border-collapse:collapse;font-size:11px;margin:12px 0}th{text-align:left;padding:8px;border-bottom:2px solid #333;color:#7a7a7a;letter-spacing:0.1em;text-transform:uppercase;font-size:9px}td{padding:6px 8px;border-bottom:1px solid #1a1a1a}' +
     '.footer{margin-top:40px;padding-top:20px;border-top:1px solid #222;text-align:center;font-size:10px;color:#555}</style></head><body>' +
     '<div class="hdr"><div class="logo-row"><svg width="44" height="38" viewBox="0 0 40 35" fill="none"><path d="M8 2C8 2 14 2 20 2C26 2 32 5 32 12C32 17 29 20 25 21L35 33H28L19 21H15V33H8V2Z" fill="#e31937"/><path d="M15 8V16H19C22 16 25 14.5 25 12C25 9.5 22 8 19 8H15Z" fill="#000"/><circle cx="35" cy="31" r="3" fill="#e31937"/></svg><h1><span class="race-w">RACE</span><span class="ctrl-w">CONTROL</span></h1></div><div class="sub">Zeitler / Wolfe Racing &middot; 915 Industries &middot; Race Report</div></div>' +
-    '<div class="exp">EXPERIMENTAL &middot; NOT FOR PUBLIC RELEASE &middot; v3.0</div>' +
+    '<div class="exp">EXPERIMENTAL &middot; NOT FOR PUBLIC RELEASE &middot; V1.0</div>' +
     '<div class="hero"><div class="label" style="font-size:10px;color:#7a7a7a;letter-spacing:0.2em;text-transform:uppercase">FINAL TIME DELTA</div>' +
     '<div class="delta">' + fmtDelta(finalDelta) + 's</div>' +
     '<div class="verdict">' + document.getElementById('finalVerdict').textContent + '</div></div>' +
@@ -1684,7 +1712,7 @@ function exportReport() {
     '<div style="font-size:10px;color:#555;text-align:right">Red dashed = class target | Green = actual speed</div>' +
     '<div class="section">Splits</div>' +
     '<table><thead><tr><th>Mile</th><th>Type</th><th>Target (s)</th><th>Actual (s)</th><th>Delta (s)</th></tr></thead><tbody>' + splitsHtml + '</tbody></table>' +
-    '<div class="footer">Generated by 915 Race Control v3.0 &middot; 915 Industries &middot; Data &gt; Opinions &middot; ' + new Date().toISOString().slice(0,10) + '</div>' +
+    '<div class="footer">Generated by 915 Race Control V1.0 &middot; 915 Industries &middot; Data &gt; Opinions &middot; ' + new Date().toISOString().slice(0,10) + '</div>' +
     '</body></html>';
   downloadBlob(new Blob([html], { type: 'text/html' }), fileTag() + '-report.html');
 }
