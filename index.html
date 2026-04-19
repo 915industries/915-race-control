@@ -483,26 +483,78 @@
   /* ==================== PIN GATE ==================== */
   #pinGate {
     position: fixed; inset: 0; z-index: 99999;
-    background: radial-gradient(ellipse at center, #1a0407 0%, #000 70%);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: env(safe-area-inset-top) 24px env(safe-area-inset-bottom);
+    background:
+      radial-gradient(ellipse at 50% 30%, rgba(227,25,55,0.18) 0%, rgba(0,0,0,0) 55%),
+      radial-gradient(ellipse at 50% 100%, rgba(227,25,55,0.10) 0%, rgba(0,0,0,0) 50%),
+      linear-gradient(180deg, #1a0005 0%, #000 50%, #1a0005 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+    padding: calc(env(safe-area-inset-top) + 8px) 18px calc(env(safe-area-inset-bottom) + 8px);
     font-family: var(--display);
     color: var(--text);
+    overflow: hidden;
   }
   #pinGate.hidden { display: none; }
-  #pinGate .pin-brand {
+
+  /* Hazard stripe top & bottom */
+  #pinGate .hazard-bar {
+    width: 100%; height: 22px; flex-shrink: 0;
+    background-image: repeating-linear-gradient(
+      -45deg,
+      #ffd100 0px, #ffd100 18px,
+      #000 18px, #000 36px
+    );
+    box-shadow: 0 0 18px rgba(255,209,0,0.18);
+  }
+  #pinGate .hazard-bar.bottom { margin-top: auto; }
+
+  /* Warning banner */
+  #pinGate .warn-banner {
+    width: 100%; max-width: 420px;
+    margin: 18px 0 10px;
+    border: 2px solid var(--race-red);
+    background: linear-gradient(180deg, rgba(227,25,55,0.18) 0%, rgba(227,25,55,0.05) 100%);
+    padding: 10px 14px;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 0 22px rgba(227,25,55,0.28), inset 0 0 18px rgba(227,25,55,0.10);
+  }
+  #pinGate .warn-banner::before,
+  #pinGate .warn-banner::after {
+    content: '\26A0'; /* ⚠ */
+    position: absolute; top: 50%; transform: translateY(-50%);
+    font-size: 22px; color: #ffd100;
+    text-shadow: 0 0 6px rgba(255,209,0,0.6);
+  }
+  #pinGate .warn-banner::before { left: 10px; }
+  #pinGate .warn-banner::after  { right: 10px; }
+  #pinGate .warn-title {
     font-family: var(--block); font-weight: 700;
-    font-size: 28px; letter-spacing: 2px;
+    font-size: 18px; letter-spacing: 4px;
     color: var(--race-red); text-transform: uppercase;
-    text-shadow: 0 0 12px rgba(227,25,55,0.4);
-    margin-bottom: 6px;
+    text-shadow: 0 0 10px rgba(227,25,55,0.6);
+  }
+  #pinGate .warn-sub {
+    font-family: var(--mono); font-weight: 700;
+    font-size: 11px; letter-spacing: 3px;
+    color: #ffd100; text-transform: uppercase;
+    margin-top: 4px;
+    text-shadow: 0 0 6px rgba(255,209,0,0.35);
+  }
+
+  #pinGate .pin-logo {
+    display: block;
+    width: min(80vw, 360px);
+    height: auto;
+    margin: 14px 0 4px;
+    filter: drop-shadow(0 0 14px rgba(227,25,55,0.5));
+    image-rendering: -webkit-optimize-contrast;
   }
   #pinGate .pin-sub {
-    font-size: 13px; letter-spacing: 3px; color: var(--muted);
-    text-transform: uppercase; margin-bottom: 28px;
+    font-size: 12px; letter-spacing: 3px; color: var(--muted);
+    text-transform: uppercase; margin-bottom: 16px;
   }
   #pinGate .pin-dots {
-    display: flex; gap: 16px; margin-bottom: 28px;
+    display: flex; gap: 16px; margin-bottom: 18px;
   }
   #pinGate .pin-dot {
     width: 18px; height: 18px; border-radius: 50%;
@@ -524,18 +576,87 @@
     60% { transform: translateX(-6px); }
     80% { transform: translateX(6px); }
   }
-  #pinGate .pin-msg {
-    font-size: 12px; letter-spacing: 2px; color: #ff3a3a;
-    text-transform: uppercase; height: 16px; margin-bottom: 14px;
-    opacity: 0; transition: opacity 0.2s;
+
+  /* Fail popup */
+  #pinFailPopup {
+    position: fixed; inset: 0; z-index: 100000;
+    display: none; align-items: center; justify-content: center;
+    padding: 24px;
+    background: radial-gradient(ellipse at center, rgba(80,0,0,0.85) 0%, rgba(0,0,0,0.95) 70%);
+    backdrop-filter: blur(2px);
   }
-  #pinGate.error .pin-msg { opacity: 1; }
+  #pinFailPopup.show { display: flex; animation: failFlash 0.45s ease; }
+  @keyframes failFlash {
+    0%   { background: rgba(255,0,0,0.55); }
+    40%  { background: rgba(120,0,0,0.85); }
+    100% { background: radial-gradient(ellipse at center, rgba(80,0,0,0.85) 0%, rgba(0,0,0,0.95) 70%); }
+  }
+  #pinFailPopup .fail-card {
+    max-width: 460px; width: 100%;
+    background: linear-gradient(180deg, #1a0005 0%, #000 100%);
+    border: 3px solid var(--race-red);
+    box-shadow: 0 0 50px rgba(227,25,55,0.6), inset 0 0 30px rgba(227,25,55,0.15);
+    padding: 22px 20px;
+    text-align: center;
+    position: relative;
+  }
+  #pinFailPopup .fail-stripes {
+    position: absolute; left: 0; right: 0; height: 12px;
+    background-image: repeating-linear-gradient(
+      -45deg,
+      #ffd100 0px, #ffd100 12px,
+      #000 12px, #000 24px
+    );
+  }
+  #pinFailPopup .fail-stripes.top { top: 0; }
+  #pinFailPopup .fail-stripes.bot { bottom: 0; }
+  #pinFailPopup .fail-icon {
+    font-size: 48px; color: #ffd100;
+    text-shadow: 0 0 18px rgba(255,209,0,0.7);
+    margin: 14px 0 6px;
+    animation: failPulse 0.8s ease-in-out infinite alternate;
+  }
+  @keyframes failPulse {
+    from { transform: scale(1); }
+    to   { transform: scale(1.08); }
+  }
+  #pinFailPopup .fail-title {
+    font-family: var(--block); font-weight: 700;
+    font-size: 26px; letter-spacing: 2px;
+    color: #ff2a2a; text-transform: uppercase;
+    text-shadow: 0 0 14px rgba(255,0,0,0.8), 0 0 2px #000;
+    line-height: 1.1;
+    margin-bottom: 10px;
+  }
+  #pinFailPopup .fail-warn {
+    font-family: var(--mono); font-weight: 700;
+    font-size: 13px; letter-spacing: 2px;
+    color: #ffd100; text-transform: uppercase;
+    text-shadow: 0 0 8px rgba(255,209,0,0.5);
+    margin: 8px 0 14px;
+    padding: 8px 6px;
+    border-top: 1px dashed rgba(255,209,0,0.4);
+    border-bottom: 1px dashed rgba(255,209,0,0.4);
+    line-height: 1.35;
+  }
+  #pinFailPopup .fail-dismiss {
+    display: inline-block;
+    background: var(--race-red); color: #000;
+    font-family: var(--block); font-weight: 700;
+    font-size: 15px; letter-spacing: 3px; text-transform: uppercase;
+    padding: 10px 22px;
+    border: 2px solid #000;
+    cursor: pointer; user-select: none;
+    box-shadow: 0 0 18px rgba(227,25,55,0.6);
+  }
+  #pinFailPopup .fail-dismiss:active { transform: scale(0.96); }
+
   #pinGate .pin-keys {
-    display: grid; grid-template-columns: repeat(3, 82px);
-    gap: 12px;
+    display: grid; grid-template-columns: repeat(3, 76px);
+    gap: 10px;
   }
   #pinGate .pin-key {
-    height: 82px; border-radius: 14px;
+    height: 76px; border-radius: 14px;
     background: linear-gradient(180deg, #141414 0%, #080808 100%);
     border: 1px solid var(--edge-2);
     color: var(--text); font-family: var(--display); font-weight: 600;
@@ -553,7 +674,12 @@
 
 <!-- ==================== PIN GATE (blocks app until PIN entered) ==================== -->
 <div id="pinGate">
-  <div class="pin-brand">915 Race Control</div>
+  <div class="hazard-bar top"></div>
+  <img class="pin-logo" src="./915%26RC.jpg" alt="915 Industries x Race Control">
+  <div class="warn-banner">
+    <div class="warn-title">Experimental Use</div>
+    <div class="warn-sub">Enter at your own risk</div>
+  </div>
   <div class="pin-sub">Enter PIN</div>
   <div class="pin-dots">
     <div class="pin-dot" data-i="0"></div>
@@ -561,7 +687,6 @@
     <div class="pin-dot" data-i="2"></div>
     <div class="pin-dot" data-i="3"></div>
   </div>
-  <div class="pin-msg">Incorrect PIN</div>
   <div class="pin-keys">
     <div class="pin-key" data-k="1">1</div>
     <div class="pin-key" data-k="2">2</div>
@@ -576,11 +701,27 @@
     <div class="pin-key" data-k="0">0</div>
     <div class="pin-key action" data-k="del">DEL</div>
   </div>
+  <div class="hazard-bar bottom"></div>
 </div>
+
+<!-- PIN fail popup -->
+<div id="pinFailPopup">
+  <div class="fail-card">
+    <div class="fail-stripes top"></div>
+    <div class="fail-icon">&#9888;</div>
+    <div class="fail-title">Your Not Authorized<br>Mother Fucker!!</div>
+    <div class="fail-warn">Next failed attempt will<br>self destruct your phone.</div>
+    <div class="fail-dismiss" id="pinFailDismiss">Try Again</div>
+    <div class="fail-stripes bot"></div>
+  </div>
+</div>
+
 <script>
 (function(){
   var PIN = '2018';
   var gate = document.getElementById('pinGate');
+  var popup = document.getElementById('pinFailPopup');
+  var dismissBtn = document.getElementById('pinFailDismiss');
   // If already unlocked this session, hide immediately.
   try {
     if (sessionStorage.getItem('rcPinOk') === '1') {
@@ -598,13 +739,15 @@
       else dots[i].classList.remove('filled');
     }
   }
+  function closePopup(){
+    popup.classList.remove('show');
+    buf = '';
+    render();
+  }
   function fail(){
     gate.classList.add('error');
-    setTimeout(function(){
-      gate.classList.remove('error');
-      buf = '';
-      render();
-    }, 600);
+    popup.classList.add('show');
+    setTimeout(function(){ gate.classList.remove('error'); }, 600);
   }
   function success(){
     try { sessionStorage.setItem('rcPinOk', '1'); } catch(e){}
@@ -634,9 +777,19 @@
     btn.addEventListener('click', function(){ press(k); });
   });
 
+  // Dismiss the fail popup
+  if (dismissBtn) dismissBtn.addEventListener('click', closePopup);
+  popup.addEventListener('click', function(e){
+    if (e.target === popup) closePopup();
+  });
+
   // Physical keyboard support (desktop testing).
   document.addEventListener('keydown', function(e){
     if (gate.classList.contains('hidden')) return;
+    if (popup.classList.contains('show')) {
+      if (e.key === 'Enter' || e.key === 'Escape') closePopup();
+      return;
+    }
     if (e.key >= '0' && e.key <= '9') press(e.key);
     else if (e.key === 'Backspace') press('del');
   });
