@@ -395,6 +395,46 @@
     animation: pulse 0.5s infinite; flex-shrink: 0;
   }
 
+  /* === COURSE NOTES === */
+  .course-notes-container {
+    display: none; background: #050505; border-top: 1px solid var(--edge);
+    flex-direction: column; max-height: 180px; overflow: hidden;
+  }
+  .course-notes-container.active { display: flex; }
+  .cn-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 10px; background: #0a0a0a; border-bottom: 1px solid var(--edge);
+    flex-shrink: 0;
+  }
+  .cn-title {
+    font-family: var(--mono); font-size: 9px; font-weight: 700;
+    letter-spacing: 0.2em; text-transform: uppercase; color: var(--race-red);
+  }
+  .cn-mute-btn {
+    background: none; border: 1px solid var(--edge); border-radius: 4px;
+    padding: 3px 8px; font-family: var(--mono); font-size: 9px;
+    color: var(--green); cursor: pointer; letter-spacing: 0.1em;
+  }
+  .cn-mute-btn.muted { color: var(--muted); border-color: var(--edge); }
+  .cn-list {
+    overflow-y: auto; flex: 1; scroll-behavior: smooth;
+    scrollbar-width: thin; scrollbar-color: #333 #050505;
+  }
+  .cn-item {
+    display: flex; gap: 8px; padding: 6px 10px;
+    border-bottom: 1px solid #111; font-family: var(--mono); font-size: 11px;
+    transition: background 0.2s; align-items: flex-start;
+  }
+  .cn-item.passed { opacity: 0.3; }
+  .cn-item.current { background: #111; border-left: 3px solid var(--green); }
+  .cn-item.upcoming { opacity: 0.8; }
+  .cn-item.hazard { border-left: 3px solid var(--amber); }
+  .cn-item.hazard.current { border-left: 3px solid var(--red); background: #1a0a0a; }
+  .cn-mi { color: var(--muted); min-width: 40px; flex-shrink: 0; font-weight: 700; }
+  .cn-turn { color: var(--blue); min-width: 28px; flex-shrink: 0; font-weight: 700; }
+  .cn-desc { color: var(--text); flex: 1; }
+  .cn-warn { color: var(--amber); font-size: 10px; font-weight: 700; flex-shrink: 0; max-width: 80px; text-align: right; }
+
   /* === DONE SCREEN === */
   #done .body { padding: 24px; overflow-y: auto; flex: 1; }
   .result-hero {
@@ -653,6 +693,14 @@
       </div>
     </div>
   </div>
+  <!-- COURSE NOTES PANEL -->
+  <div class="course-notes-container" id="courseNotesContainer">
+    <div class="cn-header">
+      <span class="cn-title">Course Notes</span>
+      <button class="cn-mute-btn" id="cnMuteBtn">AUDIO ON</button>
+    </div>
+    <div class="cn-list" id="cnList"></div>
+  </div>
   <div class="race-controls">
     <button id="markFinish">Manual Finish</button>
     <button id="stopRun" class="stop">Abort</button>
@@ -716,6 +764,170 @@ const RACES = {
   norc: { name: 'Nevada Open Road Challenge', detail: '90.00 mi | Nevada SR-318 (Down & Back)', distance_mi: 90.00, start: { lat: 38.8600, lng: -115.0200 }, finish: { lat: 37.6000, lng: -115.2200 }, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,170,180], tech_above_class: 15, min_below_class: 30 }
 };
 
+/* =============== COURSE NOTES DATA =============== */
+const COURSE_NOTES = {
+  bborr_south: [
+    {mi:0.0,turn:'',desc:'STARTING LINE (3,080 ft elev)',warn:''},
+    {mi:0.9,turn:'1R',desc:'RH sweeper into long straight',warn:''},
+    {mi:2.2,turn:'',desc:'Rough spot',warn:''},
+    {mi:3.3,turn:'2L',desc:'LH sweeper into very long straight',warn:''},
+    {mi:7.7,turn:'',desc:'Six Shooter Draw Bridge',warn:''},
+    {mi:8.2,turn:'3R',desc:'Slight bend to right',warn:''},
+    {mi:8.4,turn:'',desc:'Bridge (culvert)',warn:''},
+    {mi:10.3,turn:'',desc:'Rough in left lane',warn:''},
+    {mi:10.5,turn:'',desc:'Blind hill - straight',warn:''},
+    {mi:12.0,turn:'4L',desc:'LH corner up hill thru cut, down to short straight',warn:'4 lanes wide'},
+    {mi:12.8,turn:'5R',desc:'RH corner, down hill',warn:'3 lanes back to 2'},
+    {mi:13.1,turn:'',desc:'Bridge',warn:''},
+    {mi:14.6,turn:'6L',desc:'LH sweeper then uphill',warn:'3 lanes wide'},
+    {mi:15.1,turn:'7R',desc:'Blind RH turn over crest into downhill straight',warn:'NARROWS TO 2'},
+    {mi:16.2,turn:'8R',desc:'RH bend to very short straight',warn:''},
+    {mi:16.6,turn:'9R',desc:'RH bend',warn:''},
+    {mi:17.6,turn:'10L',desc:'LH turn uphill into short straight',warn:''},
+    {mi:17.9,turn:'11L',desc:'Blind LH turn over hill into immediate',warn:''},
+    {mi:18.2,turn:'12R',desc:'RH turn downhill into very short straight',warn:'CAUTION'},
+    {mi:18.5,turn:'13R',desc:'RH bend downhill',warn:''},
+    {mi:19.0,turn:'14L',desc:'LH corner downhill into blind exit',warn:''},
+    {mi:19.8,turn:'15L',desc:'LH bend downhill',warn:''},
+    {mi:20.9,turn:'',desc:'Nineteen Draw Bridge with blind rise',warn:'ROUGH BRIDGE'},
+    {mi:22.0,turn:'16R',desc:'Slight RH bend into very short straight',warn:''},
+    {mi:22.3,turn:'17R',desc:'RH bend slight uphill, Monument Draw Bridge',warn:'ROUGH BRIDGE'},
+    {mi:23.3,turn:'18L',desc:'Slight LH bend, Mitchell Road on left',warn:''},
+    {mi:25.6,turn:'19R',desc:'RH corner, slight upgrade',warn:''},
+    {mi:25.9,turn:'',desc:'Blind uphill into straightaway',warn:''},
+    {mi:27.7,turn:'20R',desc:'Blind RH sweeper over crest, long',warn:''},
+    {mi:29.3,turn:'21L',desc:'LH sweeper w/ elevation changes, Escondido Bridge',warn:'DIP AT END'},
+    {mi:30.6,turn:'',desc:'Blind crest in straight - elevator ride!',warn:'LOOK AHEAD'},
+    {mi:31.7,turn:'',desc:'Blind crest in straight, very quick to next turn',warn:''},
+    {mi:32.0,turn:'22L',desc:'LH corner thru cut, blind exit downhill into very short straight',warn:'3 LANES'},
+    {mi:32.4,turn:'23L',desc:'LH bend downhill into immediate',warn:'PARK LEFT, NARROWS TO 2'},
+    {mi:32.7,turn:'24R',desc:'RH bend into immediate',warn:''},
+    {mi:33.0,turn:'25L',desc:'LH turn with blind exit, slight rise into straight',warn:''},
+    {mi:35.6,turn:'26R',desc:'RH bend into very short straight',warn:''},
+    {mi:36.0,turn:'27L',desc:'LH sweeper with blind exit',warn:''},
+    {mi:36.6,turn:'',desc:'Big Canyon Bridge',warn:'ROUGH BRIDGE'},
+    {mi:37.0,turn:'28R',desc:'RH turn into immediate',warn:'DBL SWEEPER'},
+    {mi:37.2,turn:'29R',desc:'RH turn with blind exit',warn:''},
+    {mi:38.2,turn:'30L',desc:'Very slight left bend',warn:''},
+    {mi:38.8,turn:'31R',desc:'RH turn downhill with blind exit to short straight',warn:''},
+    {mi:39.4,turn:'32R',desc:'RH bend to short straight',warn:''},
+    {mi:39.8,turn:'',desc:'Middle Fork Bridge',warn:'ROUGH BRIDGE'},
+    {mi:40.0,turn:'33L',desc:'LH turn to short straight',warn:''},
+    {mi:40.6,turn:'',desc:'Sign: Sanderson 20 miles',warn:''},
+    {mi:41.1,turn:'34R',desc:'Long RH corner with uphill rise',warn:''},
+    {mi:42.4,turn:'35L',desc:'LH turn, slight down hill',warn:''},
+    {mi:42.8,turn:'',desc:'Clark Place Draw Bridge',warn:'BLIND CORNERS AHEAD'},
+    {mi:43.8,turn:'36L',desc:'Long LH corner uphill into very short straight',warn:'3 LANES'},
+    {mi:44.2,turn:'37R',desc:'RH corner through cut',warn:'4 LANES'},
+    {mi:44.4,turn:'38L',desc:'Blind LH corner downhill, long',warn:''},
+    {mi:45.0,turn:'39L',desc:'Slight LH bend',warn:'BACK TO 2'},
+    {mi:45.2,turn:'40R',desc:'Long RH corner thru cut, CAUTION, very long',warn:'3 LANES'},
+    {mi:45.6,turn:'',desc:'FM 2400 Junction on left',warn:''},
+    {mi:45.8,turn:'41L',desc:'LH turn uphill and over',warn:'4 LANES'},
+    {mi:46.0,turn:'42R',desc:'Slight RH bend into short downhill straight',warn:'3 LANES'},
+    {mi:46.4,turn:'43R',desc:'RH corner into short straight',warn:''},
+    {mi:47.1,turn:'44L',desc:'LH corner, long',warn:'3 AT ENTRY, NARROWS TO 2'},
+    {mi:48.0,turn:'',desc:'Ranch house on right',warn:'LEFT LANE ROUGH'},
+    {mi:48.7,turn:'45L',desc:'Slight LH bend',warn:'LEFT LANE ROUGH'},
+    {mi:49.4,turn:'46R',desc:'Blind RH corner downhill into long straight',warn:'LOOK UP'},
+    {mi:49.9,turn:'',desc:'Terrell County Sign',warn:'PAVEMENT CHANGES'},
+    {mi:50.1,turn:'',desc:'Downie Draw Bridge',warn:'ROUGH BRIDGE'},
+    {mi:50.8,turn:'',desc:'Sign: Sanderson 10 miles',warn:''},
+    {mi:51.4,turn:'47L',desc:'LH corner uphill, very late apex to exit, into very short straight',warn:'3 LANES'},
+    {mi:51.8,turn:'48L',desc:'LH sweeper thru cut downhill, almost double left',warn:'WIDENS TO 4'},
+    {mi:52.2,turn:'49L',desc:'LH turn into very short straight',warn:'3 LANES, TIGHT'},
+    {mi:52.5,turn:'50R',desc:'RH corner downhill, blind exit',warn:''},
+    {mi:52.7,turn:'51L',desc:'Long LH corner still downhill',warn:'2 LANES AT EXIT'},
+    {mi:53.2,turn:'52R',desc:'RH corner into short straight',warn:''},
+    {mi:53.7,turn:'53L',desc:'LH corner',warn:''},
+    {mi:54.2,turn:'54R',desc:'RH bend',warn:''},
+    {mi:54.9,turn:'55R',desc:'Slight RH bend into very short straight',warn:''},
+    {mi:55.3,turn:'56L',desc:'LH turn into short straight',warn:''},
+    {mi:55.9,turn:'57R',desc:'Long RH corner',warn:''},
+    {mi:56.5,turn:'',desc:'Bridge',warn:''},
+    {mi:57.4,turn:'58R',desc:'RH turn, bridge just past exit, into immediate',warn:'CAUTION'},
+    {mi:57.7,turn:'59R',desc:'RH corner',warn:'CAUTION - SLOWER THAN PREV'},
+    {mi:58.2,turn:'60L',desc:'LH sweeper then head to finish line',warn:''},
+    {mi:59.0,turn:'',desc:'FINISH LINE (2,885 ft elev)',warn:'SHORT SHUTDOWN'}
+  ],
+  bborr_north: [
+    {mi:0.0,turn:'',desc:'STARTING LINE (2,885 ft elev)',warn:''},
+    {mi:0.6,turn:'60R',desc:'RH sweeper into short straight',warn:''},
+    {mi:1.1,turn:'59L',desc:'LH corner goes into immediate',warn:''},
+    {mi:1.4,turn:'58L',desc:'LH sweeper, bridge just before entrance',warn:''},
+    {mi:2.5,turn:'',desc:'Bridge',warn:''},
+    {mi:2.8,turn:'57L',desc:'Long LH corner into short straight',warn:''},
+    {mi:3.5,turn:'56R',desc:'RH turn into very short straight',warn:''},
+    {mi:3.9,turn:'55L',desc:'Slight LH bend',warn:''},
+    {mi:4.7,turn:'54L',desc:'LH turn',warn:''},
+    {mi:5.1,turn:'53R',desc:'RH corner uphill into short straight',warn:''},
+    {mi:5.7,turn:'52L',desc:'LH corner uphill into immediate',warn:''},
+    {mi:5.9,turn:'51R',desc:'Long RH corner uphill into immediate',warn:'3 LANES'},
+    {mi:6.4,turn:'50L',desc:'LH corner uphill to very short straight',warn:''},
+    {mi:6.7,turn:'49R',desc:'RH turn approaching double cut into immediate',warn:'4 LANES AT EXIT'},
+    {mi:6.9,turn:'48R',desc:'Blind RH sweeper thru double cut into very short straight',warn:'NARROWS TO 3'},
+    {mi:7.4,turn:'47R',desc:'RH downhill corner into long straight',warn:'CAUTION'},
+    {mi:8.8,turn:'',desc:'Downie Draw Bridge',warn:'ROUGH BRIDGE'},
+    {mi:9.1,turn:'',desc:'Pecos County Line',warn:'PAVEMENT CHANGE'},
+    {mi:9.4,turn:'46L',desc:'LH corner, uphill',warn:'CAUTION'},
+    {mi:10.1,turn:'45R',desc:'Slight RH bend',warn:'RIGHT LANE ROUGH'},
+    {mi:11.5,turn:'44R',desc:'Long RH corner uphill into short straight',warn:'WIDENS TO 3'},
+    {mi:12.5,turn:'43L',desc:'LH corner to steep uphill with blind crest',warn:''},
+    {mi:13.0,turn:'42L',desc:'Slight blind LH bend to immediate',warn:''},
+    {mi:13.1,turn:'41R',desc:'RH turn over crest into short straight',warn:'4 TO 3 LANES'},
+    {mi:13.5,turn:'40L',desc:'Long LH corner thru cut',warn:'NARROWS TO 2 AT EXIT'},
+    {mi:14.0,turn:'39R',desc:'Slight RH bend',warn:'3 LANES'},
+    {mi:14.3,turn:'38R',desc:'RH corner thru cut downhill',warn:'4 LANES'},
+    {mi:14.6,turn:'37L',desc:'LH corner into very short straight',warn:'NARROWS TO 3 AT EXIT'},
+    {mi:15.0,turn:'36R',desc:'Long RH corner downhill into straightaway',warn:''},
+    {mi:16.2,turn:'',desc:'Clark Place Draw Bridge',warn:'ROUGH BRIDGE'},
+    {mi:16.5,turn:'35R',desc:'RH turn uphill',warn:''},
+    {mi:17.6,turn:'34L',desc:'Blind LH corner downhill, tight, to short straight',warn:''},
+    {mi:18.9,turn:'33R',desc:'RH turn to short straight',warn:''},
+    {mi:19.1,turn:'',desc:'Middle Fork Big Canyon Bridge',warn:'ROUGH BRIDGE'},
+    {mi:19.5,turn:'32L',desc:'LH bend to short straight',warn:''},
+    {mi:20.0,turn:'31L',desc:'LH turn uphill',warn:''},
+    {mi:20.7,turn:'30R',desc:'Very slight RH bend',warn:''},
+    {mi:21.5,turn:'29L',desc:'Blind LH turn at end of straight to immediate',warn:'#29 & 28 LIKE ONE'},
+    {mi:21.9,turn:'28L',desc:'LH turn',warn:''},
+    {mi:22.3,turn:'',desc:'Big Canyon Bridge',warn:'ROUGH BRIDGE'},
+    {mi:22.7,turn:'27R',desc:'RH sweeper into very short straight',warn:''},
+    {mi:23.2,turn:'26L',desc:'LH bend into straight',warn:''},
+    {mi:25.9,turn:'25R',desc:'RH turn into immediate',warn:''},
+    {mi:26.1,turn:'24L',desc:'LH bend uphill into immediate',warn:'PARK ON RIGHT'},
+    {mi:26.5,turn:'23R',desc:'RH bend steep uphill into very short straight',warn:'3 LANES'},
+    {mi:26.8,turn:'22R',desc:'Blind RH corner, narrows thru cut on exit',warn:'4 THEN 2 LANES'},
+    {mi:29.3,turn:'21R',desc:'Long RH sweeper, Escondido Draw Bridge shortly after',warn:'DIP ON ENTRANCE'},
+    {mi:30.7,turn:'20L',desc:'Long LH sweeper uphill, exit over crest',warn:''},
+    {mi:33.0,turn:'19L',desc:'LH corner',warn:''},
+    {mi:35.5,turn:'18R',desc:'Slight RH bend',warn:'MITCHELL RD ON RIGHT'},
+    {mi:36.6,turn:'17L',desc:'LH bend over Monument Draw Bridge into very short straight',warn:'ROUGH BRIDGE'},
+    {mi:36.9,turn:'16L',desc:'Slight LH bend',warn:''},
+    {mi:38.1,turn:'',desc:'Nineteen Draw Bridge',warn:'ROUGH BRIDGE'},
+    {mi:39.1,turn:'15R',desc:'RH bend',warn:''},
+    {mi:39.7,turn:'14R',desc:'Long RH corner uphill',warn:''},
+    {mi:40.4,turn:'13L',desc:'LH bend into very short straight',warn:''},
+    {mi:40.8,turn:'12L',desc:'Short LH turn uphill into immediate',warn:''},
+    {mi:41.0,turn:'11R',desc:'Blind RH turn into short straight',warn:''},
+    {mi:41.3,turn:'10R',desc:'RH turn',warn:''},
+    {mi:42.3,turn:'9L',desc:'LH bend to very short straight',warn:''},
+    {mi:42.7,turn:'8L',desc:'LH bend',warn:''},
+    {mi:43.6,turn:'7L',desc:'LH turn up and over hill into very short straight',warn:'4 LANES TO 3'},
+    {mi:44.1,turn:'6R',desc:'RH sweeper downhill',warn:'LOOK UP, 2 LANES'},
+    {mi:45.9,turn:'5L',desc:'LH corner up steep hill to short straight',warn:'3 LANES'},
+    {mi:46.6,turn:'4R',desc:'Blind RH corner out of cut, long',warn:'4 THEN 2 LANES'},
+    {mi:48.2,turn:'',desc:'Blind crest thru cut, straight',warn:''},
+    {mi:48.7,turn:'',desc:'Rough in right lane',warn:''},
+    {mi:50.6,turn:'',desc:'Bridge (culvert)',warn:''},
+    {mi:50.7,turn:'3L',desc:'Blind slight LH bend to very long straight',warn:''},
+    {mi:51.3,turn:'',desc:'Six Shooter Draw Straight',warn:''},
+    {mi:55.3,turn:'2R',desc:'RH sweeper slight uphill into long straight',warn:''},
+    {mi:56.7,turn:'',desc:'Rough spot',warn:''},
+    {mi:57.8,turn:'1L',desc:'LH sweeper into finish line straight heading home',warn:''},
+    {mi:59.0,turn:'',desc:'FINISH LINE (3,080 ft elev)',warn:'GATE ON RIGHT'}
+  ]
+};
+
 const MS_PER_MIN = 60000, MI_PER_M = 0.000621371, MS_TO_MPH = 2.23694;
 const COORD_STORAGE_KEY = 'orr_pace_custom_coords_v3';
 
@@ -729,7 +941,8 @@ const state = {
   lastAccel: { x: 0, y: 0, z: 0 }, lastGyro: { alpha: 0, beta: 0, gamma: 0 },
   heading: null, gravityOffset: { x: 0, y: 0, z: 0 },
   filteredGLat: 0, filteredGLong: 0, peakGLat: 0, peakGLong: 0,
-  splits: [], nextSplitIdx: 0, sprintMode: false
+  splits: [], nextSplitIdx: 0, sprintMode: false,
+  courseNotes: [], nextNoteIdx: 0, hazardMuted: false, lastSpokenNoteIdx: -1
 };
 
 /* =============== UTILITY FUNCTIONS =============== */
@@ -1021,6 +1234,71 @@ function checkSplits(elapsedSec, distMi) {
   renderSplitBar();
 }
 
+/* =============== COURSE NOTES =============== */
+function initCourseNotes() {
+  const notes = COURSE_NOTES[state.race];
+  if (!notes || notes.length === 0) {
+    state.courseNotes = [];
+    document.getElementById('courseNotesContainer').classList.remove('active');
+    return;
+  }
+  state.courseNotes = notes;
+  state.nextNoteIdx = 0;
+  state.lastSpokenNoteIdx = -1;
+  document.getElementById('courseNotesContainer').classList.add('active');
+  renderCourseNotes();
+}
+function renderCourseNotes() {
+  const list = document.getElementById('cnList');
+  list.innerHTML = '';
+  state.courseNotes.forEach((n, idx) => {
+    const div = document.createElement('div');
+    const isHazard = n.warn && n.warn.length > 0;
+    let cls = 'cn-item';
+    if (idx < state.nextNoteIdx) cls += ' passed';
+    else if (idx === state.nextNoteIdx) cls += ' current';
+    else cls += ' upcoming';
+    if (isHazard) cls += ' hazard';
+    div.className = cls;
+    div.id = 'cn-' + idx;
+    div.innerHTML =
+      '<span class="cn-mi">' + n.mi.toFixed(1) + '</span>' +
+      '<span class="cn-turn">' + (n.turn || '') + '</span>' +
+      '<span class="cn-desc">' + n.desc + '</span>' +
+      (isHazard ? '<span class="cn-warn">' + n.warn + '</span>' : '');
+    list.appendChild(div);
+  });
+  scrollToCurrentNote();
+}
+function scrollToCurrentNote() {
+  const el = document.getElementById('cn-' + state.nextNoteIdx);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function checkCourseNotes(distMi) {
+  if (state.courseNotes.length === 0) return;
+  let changed = false;
+  while (state.nextNoteIdx < state.courseNotes.length && distMi >= state.courseNotes[state.nextNoteIdx].mi) {
+    state.nextNoteIdx++;
+    changed = true;
+  }
+  // Speak upcoming hazards (look ahead ~0.5 mi)
+  if (!state.hazardMuted) {
+    for (let i = state.nextNoteIdx; i < Math.min(state.nextNoteIdx + 3, state.courseNotes.length); i++) {
+      const n = state.courseNotes[i];
+      const distAhead = n.mi - distMi;
+      if (distAhead <= 0.5 && distAhead > 0 && n.warn && i > state.lastSpokenNoteIdx) {
+        const miAhead = distAhead < 0.15 ? 'now' : (distAhead.toFixed(1) + ' ahead');
+        const turnDir = n.turn ? (n.turn.includes('L') ? 'left' : n.turn.includes('R') ? 'right' : '') : '';
+        const msg = miAhead + ', ' + (turnDir ? turnDir + ' turn, ' : '') + n.warn.toLowerCase();
+        speak(msg, false);
+        state.lastSpokenNoteIdx = i;
+        break; // one at a time
+      }
+    }
+  }
+  if (changed) renderCourseNotes();
+}
+
 /* =============== PRESTAGE =============== */
 let prestageTimer = null;
 function enterPrestage() {
@@ -1073,6 +1351,7 @@ function launchRace() {
   state.peakGLat = 0; state.peakGLong = 0;
   state.filteredGLat = 0; state.filteredGLong = 0;
   buildSplits();
+  initCourseNotes();
   if (state.motionEnabled) {
     captureGravityOffset();
     document.getElementById('gPadContainer').classList.add('active');
@@ -1182,6 +1461,7 @@ function tickRace() {
   }
 
   checkSplits(elapsedSec, state.distanceMi);
+  checkCourseNotes(state.distanceMi);
 
   // Sprint mode
   const distToFinish = r.distance_mi - state.distanceMi;
@@ -1440,6 +1720,8 @@ function resetAll() {
   document.getElementById('disarmBtn').style.display = 'none';
   document.getElementById('sprintBanner').classList.add('hidden');
   document.getElementById('gPadContainer').classList.remove('active');
+  document.getElementById('courseNotesContainer').classList.remove('active');
+  state.courseNotes = []; state.nextNoteIdx = 0; state.lastSpokenNoteIdx = -1;
   renderSetup();
   show('setup');
 }
@@ -1483,6 +1765,12 @@ document.getElementById('resetCoords').onclick = () => {
 document.getElementById('coordModal').addEventListener('click', (e) => { if (e.target.id === 'coordModal') closeModal(); });
 document.getElementById('reqMotion').onclick = requestMotionPermission;
 document.getElementById('reqAudio').onclick = enableSpeech;
+document.getElementById('cnMuteBtn').onclick = () => {
+  state.hazardMuted = !state.hazardMuted;
+  const btn = document.getElementById('cnMuteBtn');
+  btn.textContent = state.hazardMuted ? 'AUDIO OFF' : 'AUDIO ON';
+  btn.classList.toggle('muted', state.hazardMuted);
+};
 
 /* =============== INIT =============== */
 loadCustomCoords();
