@@ -544,6 +544,13 @@
     </div>
     <button class="coord-btn reset" id="resetCoords">Reset to Default Coordinates</button>
 
+    <div class="section-label">Device Label</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button class="sensor-btn" onclick="setDeviceLabel('Tim - Windshield')" id="labelTim">Tim - Windshield</button>
+      <button class="sensor-btn" onclick="setDeviceLabel('Josh - Navigator')" id="labelJosh">Josh - Navigator</button>
+    </div>
+    <input type="text" id="deviceLabel" placeholder="Custom label (e.g. Tim - Windshield)" value="" style="width:100%;box-sizing:border-box;padding:10px 12px;font-family:var(--mono);font-size:14px;background:#111;color:var(--text);border:1px solid var(--edge-2);border-radius:6px;margin-bottom:12px;" onchange="state.deviceLabel=this.value;localStorage.setItem('orr_device_label',this.value);">
+
     <div class="section-label">Sensors</div>
     <div class="sensor-row">
       <button class="sensor-btn" id="reqMotion">Enable Motion Sensors</button>
@@ -927,7 +934,8 @@ const state = {
   filteredGLat: 0, filteredGLong: 0, peakGLat: 0, peakGLong: 0,
   splits: [], nextSplitIdx: 0, sprintMode: false,
   courseNotes: [], nextNoteIdx: 0, hazardMuted: false, lastSpokenNoteIdx: -1,
-  selectedVoice: null
+  selectedVoice: null,
+  deviceLabel: localStorage.getItem('orr_device_label') || ''
 };
 
 /* =============== UTILITY FUNCTIONS =============== */
@@ -963,7 +971,8 @@ function show(id) {
 function fileTag() {
   const raceTag = (state.race || 'unknown').replace(/_/g, '-');
   const dateTag = new Date(state.startedAtMs || Date.now()).toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  return '915rc-' + raceTag + '-' + (state.classSpeed || 0) + 'mph-' + dateTag;
+  const devTag = state.deviceLabel ? '-' + state.deviceLabel.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() : '';
+  return '915rc-' + raceTag + '-' + (state.classSpeed || 0) + 'mph-' + dateTag + devTag;
 }
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -1213,6 +1222,14 @@ function loadVoices() {
     const match = voices.find(v => v.name === saved);
     if (match) state.selectedVoice = match;
   }
+}
+function setDeviceLabel(label) {
+  state.deviceLabel = label;
+  localStorage.setItem('orr_device_label', label);
+  document.getElementById('deviceLabel').value = label;
+  document.getElementById('labelTim').classList.toggle('enabled', label === 'Tim - Windshield');
+  document.getElementById('labelJosh').classList.toggle('enabled', label === 'Josh - Navigator');
+  speak(pick([label + '. Locked in.', label + ' device. Got it.', label + '. I know who you are now.']), true);
 }
 function onVoiceChange(name) {
   if (!name) { state.selectedVoice = null; localStorage.removeItem('orr_voice_pref'); }
@@ -1623,7 +1640,8 @@ function releaseWakeLock() { if (wakeLock) { wakeLock.release(); wakeLock = null
 
 // 1. GPS Track CSV
 function exportGpsCsv() {
-  let csv = 'timestamp_utc_ms,elapsed_sec,latitude,longitude,speed_mph,speed_ms,accuracy_m,heading_deg\n';
+  let csv = '# device: ' + (state.deviceLabel || 'unlabeled') + '\n';
+  csv += 'timestamp_utc_ms,elapsed_sec,latitude,longitude,speed_mph,speed_ms,accuracy_m,heading_deg\n';
   state.samples.forEach(s => {
     const elapsed = ((s.t - state.startedAtMs) / 1000).toFixed(3);
     const mph = s.speed_ms !== null ? (s.speed_ms * MS_TO_MPH).toFixed(2) : '';
@@ -1636,7 +1654,8 @@ function exportGpsCsv() {
 
 // 2. Motion Track CSV
 function exportMotionCsv() {
-  let csv = 'timestamp_ms,accel_x,accel_y,accel_z,g_lateral,g_longitudinal,rot_alpha,rot_beta,rot_gamma,heading\n';
+  let csv = '# device: ' + (state.deviceLabel || 'unlabeled') + '\n';
+  csv += 'timestamp_ms,accel_x,accel_y,accel_z,g_lateral,g_longitudinal,rot_alpha,rot_beta,rot_gamma,heading\n';
   state.motionSamples.forEach(s => {
     csv += s.t + ',' + s.ax.toFixed(4) + ',' + s.ay.toFixed(4) + ',' + s.az.toFixed(4) + ',' +
            s.gLat.toFixed(4) + ',' + s.gLong.toFixed(4) + ',' +
@@ -1677,6 +1696,7 @@ function exportJson() {
     generator: '915 Race Control',
     team: 'Zeitler / Wolfe Racing',
     vehicle: '2018 SRT Durango',
+    device: state.deviceLabel || 'unlabeled',
     race: { key: state.race, name: r.name, distance_mi: r.distance_mi },
     classSpeed_mph: state.classSpeed,
     techSpeed_mph: state.classSpeed + r.tech_above_class,
@@ -1877,6 +1897,12 @@ document.getElementById('cnMuteBtn').onclick = () => {
 loadCustomCoords();
 renderSetup();
 startGps();
+// Restore device label
+if (state.deviceLabel) {
+  document.getElementById('deviceLabel').value = state.deviceLabel;
+  document.getElementById('labelTim').classList.toggle('enabled', state.deviceLabel === 'Tim - Windshield');
+  document.getElementById('labelJosh').classList.toggle('enabled', state.deviceLabel === 'Josh - Navigator');
+}
 // Load voices — some browsers fire onvoiceschanged, others have them ready immediately
 if (window.speechSynthesis) {
   loadVoices();
