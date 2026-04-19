@@ -1311,17 +1311,18 @@ function logNetworkEvent() {
   updateNetworkDisplay();
 }
 async function probeNetwork() {
-  // Active reachability probe — small, CORS-friendly, cache-busted.
+  // Active reachability probe — uses no-cors so it works cross-origin without CORS headers.
+  // On success, the response is opaque (unreadable) but the request completed end-to-end:
+  // DNS + TCP + TLS + HTTP round-trip all succeeded, which is exactly what we want to measure.
+  // On any network failure (offline, DNS fail, timeout, TLS fail), fetch throws → caught → probeOk=false.
   const url = 'https://www.cloudflare.com/cdn-cgi/trace?_t=' + Date.now();
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), 5000);
   const t0 = performance.now();
   try {
-    const resp = await fetch(url, { method: 'GET', cache: 'no-store', signal: ctl.signal });
-    const ok = resp.ok;
-    const latency = performance.now() - t0;
-    state.network.probeOk = ok;
-    state.network.probeLatencyMs = ok ? Math.round(latency) : null;
+    await fetch(url, { method: 'GET', cache: 'no-store', mode: 'no-cors', signal: ctl.signal });
+    state.network.probeOk = true;
+    state.network.probeLatencyMs = Math.round(performance.now() - t0);
   } catch (e) {
     state.network.probeOk = false;
     state.network.probeLatencyMs = null;
@@ -1949,9 +1950,10 @@ function exportGpsCsv() {
     const netEff = s.net_effective || '';
     const netProbe = (s.net_probe_ok === true) ? '1' : (s.net_probe_ok === false) ? '0' : '';
     const netMs = (s.net_probe_ms !== null && s.net_probe_ms !== undefined) ? s.net_probe_ms : '';
+    const acc = (s.accuracy !== null && s.accuracy !== undefined) ? s.accuracy.toFixed(1) : '';
     csv += s.t + ',' + elapsed + ',' + s.lat.toFixed(7) + ',' + s.lng.toFixed(7) + ',' +
            alt + ',' + altAcc + ',' + altFt + ',' +
-           mph + ',' + ms + ',' + s.accuracy.toFixed(1) + ',' + hdg + ',' +
+           mph + ',' + ms + ',' + acc + ',' + hdg + ',' +
            netOnline + ',' + netEff + ',' + netProbe + ',' + netMs + '\n';
   });
   downloadBlob(new Blob([csv], { type: 'text/csv' }), fileTag() + '-gps.csv');
@@ -1987,7 +1989,9 @@ function exportGpx() {
     }
     gpx += '        <time>' + iso + '</time>\n';
     gpx += '        <speed>' + spd + '</speed>\n';
-    gpx += '        <hdop>' + (s.accuracy / 5).toFixed(1) + '</hdop>\n';
+    if (s.accuracy !== null && s.accuracy !== undefined) {
+      gpx += '        <hdop>' + (s.accuracy / 5).toFixed(1) + '</hdop>\n';
+    }
     gpx += '      </trkpt>\n';
   });
   gpx += '    </trkseg>\n  </trk>\n</gpx>';
