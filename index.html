@@ -1390,6 +1390,8 @@ function tickPrestage() {
       cEl.classList.remove('red', 'yellow');
       cEl.classList.add('go'); cEl.textContent = 'GO';
       if (lastSpokenCountdown !== 0) { lastSpokenCountdown = 0; speak(pick(['GO GO GO!', 'Green green green! Send it!', 'GO! Hammer down!']), true); }
+      // Kill prestage timer immediately to prevent re-entry
+      if (prestageTimer) { clearInterval(prestageTimer); prestageTimer = null; }
       launchRace();
     }
   } else {
@@ -1423,26 +1425,34 @@ function renderStartPicker() {
 /* =============== RACE =============== */
 function launchRace() {
   if (state.raceActive) return;
-  state.raceActive = true;
-  state.startedAtMs = state.armedStartUtcMs;
-  state.samples = []; state.motionSamples = [];
-  state.distanceMi = 0; state.peakMph = 0;
-  state.lastPos = null; state.sprintMode = false;
-  state.peakGLat = 0; state.peakGLong = 0;
-  state.filteredGLat = 0; state.filteredGLong = 0;
-  buildSplits();
-  initCourseNotes();
-  if (state.motionEnabled) {
-    captureGravityOffset();
-    document.getElementById('gPadContainer').classList.add('active');
+  try {
+    state.raceActive = true;
+    state.startedAtMs = state.armedStartUtcMs;
+    state.samples = []; state.motionSamples = [];
+    state.distanceMi = 0; state.peakMph = 0;
+    state.lastPos = null; state.sprintMode = false;
+    state.peakGLat = 0; state.peakGLong = 0;
+    state.filteredGLat = 0; state.filteredGLong = 0;
+    buildSplits();
+    initCourseNotes();
+    if (state.motionEnabled) {
+      captureGravityOffset();
+      document.getElementById('gPadContainer').classList.add('active');
+    }
+    clearInterval(prestageTimer); prestageTimer = null;
+    const r = RACES[state.race];
+    document.getElementById('raceInfo').textContent = r.name.split('(')[0].trim() + ' | ' + state.classSpeed + ' CLASS';
+    show('race');
+    speak(pick(['Clock is hot. Let\'s go racing!', 'We are live! Show me what this Durango can do.', 'Clock running. Time to earn that trophy.']), true);
+    state.raceTicker = setInterval(tickRace, 100);
+    requestWakeLock();
+  } catch (e) {
+    console.error('launchRace error:', e);
+    // Failsafe: force transition even if something broke
+    clearInterval(prestageTimer); prestageTimer = null;
+    show('race');
+    state.raceTicker = setInterval(tickRace, 100);
   }
-  clearInterval(prestageTimer); prestageTimer = null;
-  const r = RACES[state.race];
-  document.getElementById('raceInfo').textContent = r.name.split('(')[0].trim() + ' | ' + state.classSpeed + ' CLASS';
-  show('race');
-  speak(pick(['Clock is hot. Let\'s go racing!', 'We are live! Show me what this Durango can do.', 'Clock running. Time to earn that trophy.']), true);
-  state.raceTicker = setInterval(tickRace, 100);
-  requestWakeLock();
 }
 
 function handleRaceFix(fix) {
