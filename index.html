@@ -128,13 +128,13 @@
   .hero-center { flex: 1; text-align: center; }
   .hero-team {
     font-family: var(--display); font-weight: 900; font-style: italic;
-    font-size: 36px; letter-spacing: 0.06em; line-height: 1.05;
+    font-size: 108px; letter-spacing: 0.06em; line-height: 1.0;
     text-transform: uppercase;
   }
   .hero-team-racing {
     font-family: var(--display); font-weight: 700; font-style: italic;
-    font-size: 22px; letter-spacing: 0.25em; color: var(--race-red);
-    text-transform: uppercase; margin-top: 4px;
+    font-size: 110px; letter-spacing: 0.25em; color: var(--race-red);
+    text-transform: uppercase; margin-top: 6px;
   }
   .hero-divider {
     width: 100%; height: 1px;
@@ -146,20 +146,20 @@
     position: relative; z-index: 1;
   }
   .hero-roles {
-    display: flex; gap: 16px;
-    font-family: var(--mono); font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase;
+    display: flex; gap: 24px;
+    font-family: var(--mono); font-size: 80px; letter-spacing: 0.08em; text-transform: uppercase;
   }
   .hero-role { color: var(--muted); }
   .hero-role span { color: var(--text); font-weight: 700; }
   .hero-vehicle {
-    font-family: var(--mono); font-size: 16px; color: var(--muted);
+    font-family: var(--mono); font-size: 64px; color: var(--muted);
     letter-spacing: 0.05em; font-weight: 700;
   }
   .hero-tagline {
     font-family: var(--display); font-weight: 700; font-style: italic;
-    font-size: 18px; letter-spacing: 0.12em; color: var(--race-red);
+    font-size: 180px; letter-spacing: 0.12em; color: var(--race-red);
     text-transform: uppercase; text-align: center;
-    margin-top: 10px; opacity: 0.9; position: relative; z-index: 1;
+    margin-top: 14px; opacity: 0.9; position: relative; z-index: 1;
   }
 
   .section-label {
@@ -562,6 +562,11 @@
     <div class="info-line"><span class="k">Compass</span><span class="v" id="sensCompass">NOT REQUESTED</span></div>
     <div class="info-line"><span class="k">Speech Synthesis</span><span class="v" id="sensSpeech">NOT REQUESTED</span></div>
 
+    <div class="section-label">Voice</div>
+    <select id="voiceSelect" onchange="onVoiceChange(this.value)" style="width:100%;padding:12px;font-family:var(--mono);font-size:14px;background:#111;color:var(--text);border:1px solid var(--edge-2);border-radius:6px;margin-bottom:12px;-webkit-appearance:none;">
+      <option value="">Loading voices...</option>
+    </select>
+
     <div class="tip-box">
       <strong>Tip:</strong> For a full record of the app UI with audio, start iOS Control Center Screen Recording before launching.
     </div>
@@ -950,7 +955,8 @@ const state = {
   heading: null, gravityOffset: { x: 0, y: 0, z: 0 },
   filteredGLat: 0, filteredGLong: 0, peakGLat: 0, peakGLong: 0,
   splits: [], nextSplitIdx: 0, sprintMode: false,
-  courseNotes: [], nextNoteIdx: 0, hazardMuted: false, lastSpokenNoteIdx: -1
+  courseNotes: [], nextNoteIdx: 0, hazardMuted: false, lastSpokenNoteIdx: -1,
+  selectedVoice: null
 };
 
 /* =============== UTILITY FUNCTIONS =============== */
@@ -1181,7 +1187,43 @@ function speak(text, priority) {
   if (priority) window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.rate = 1.1; u.volume = 1.0;
+  if (state.selectedVoice) u.voice = state.selectedVoice;
   window.speechSynthesis.speak(u);
+}
+function loadVoices() {
+  const voices = window.speechSynthesis.getVoices();
+  const sel = document.getElementById('voiceSelect');
+  if (!sel || voices.length === 0) return;
+  sel.innerHTML = '';
+  // Default option
+  const defOpt = document.createElement('option');
+  defOpt.value = ''; defOpt.textContent = 'System Default';
+  sel.appendChild(defOpt);
+  // Add all available voices, prioritize female-sounding / en voices
+  const enVoices = voices.filter(v => v.lang.startsWith('en'));
+  const otherVoices = voices.filter(v => !v.lang.startsWith('en'));
+  [...enVoices, ...otherVoices].forEach((v, i) => {
+    const opt = document.createElement('option');
+    opt.value = v.name;
+    opt.textContent = v.name + ' (' + v.lang + ')' + (v.localService ? '' : ' [network]');
+    sel.appendChild(opt);
+  });
+  // Restore saved selection
+  const saved = localStorage.getItem('orr_voice_pref');
+  if (saved) {
+    sel.value = saved;
+    const match = voices.find(v => v.name === saved);
+    if (match) state.selectedVoice = match;
+  }
+}
+function onVoiceChange(name) {
+  if (!name) { state.selectedVoice = null; localStorage.removeItem('orr_voice_pref'); }
+  else {
+    const match = window.speechSynthesis.getVoices().find(v => v.name === name);
+    if (match) { state.selectedVoice = match; localStorage.setItem('orr_voice_pref', name); }
+  }
+  // Preview the voice
+  speak('Race control ready', true);
 }
 
 /* =============== SPLITS =============== */
@@ -1330,7 +1372,7 @@ function tickPrestage() {
       else if (remSec <= 15) cEl.classList.add('red');
       // Audio countdown callouts
       const wholeSecRemain = Math.ceil(remSec);
-      const callouts = [60, 30, 20, 10, 5, 4, 3, 2, 1];
+      const callouts = [60, 30, 20, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
       for (const c of callouts) {
         if (wholeSecRemain === c && lastSpokenCountdown !== c) {
           lastSpokenCountdown = c;
@@ -1809,6 +1851,11 @@ document.getElementById('cnMuteBtn').onclick = () => {
 loadCustomCoords();
 renderSetup();
 startGps();
+// Load voices — some browsers fire onvoiceschanged, others have them ready immediately
+if (window.speechSynthesis) {
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && state.raceActive) requestWakeLock();
 });
