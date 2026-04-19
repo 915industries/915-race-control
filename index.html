@@ -469,6 +469,15 @@
   .export-full { grid-column: 1 / -1; }
 
   .hidden { display: none !important; }
+  .net-badge {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em;
+    padding: 2px 6px; border-radius: 4px; margin-left: 6px;
+    border: 1px solid #2a2a2a; background: #0a0a0a; color: #7a7a7a;
+    white-space: nowrap;
+  }
+  .net-badge.ok  { color: #00ff66; border-color: #1a3a22; }
+  .net-badge.mid { color: #ffaa00; border-color: #3a2a0a; }
+  .net-badge.off { color: #ff3a3a; border-color: #3a0a0a; }
 </style>
 </head>
 <body>
@@ -485,6 +494,7 @@
     <div class="brand-right">
       <span id="gpsDotSetup" class="gps-dot"></span>
       <span class="gps-stat" id="gpsStatSetup">NO FIX</span>
+      <span class="net-badge" id="netBadgeSetup">NET …</span>
     </div>
   </div>
   <div class="exp-ribbon">Experimental &middot; Not For Public Release &middot; V1.0</div>
@@ -610,6 +620,7 @@
     <div class="brand-right">
       <span id="gpsDotPre" class="gps-dot"></span>
       <span class="gps-stat" id="gpsStatPre">NO FIX</span>
+      <span class="net-badge" id="netBadgePre">NET …</span>
     </div>
   </div>
   <div class="exp-ribbon">Experimental &middot; Not For Public Release &middot; V1.0</div>
@@ -639,6 +650,7 @@
     <div class="brand-right">
       <span id="gpsDotRace" class="gps-dot"></span>
       <span class="gps-stat" id="elapsedTop">00:00</span>
+      <span class="net-badge" id="netBadgeRace">NET …</span>
     </div>
   </div>
   <div id="dqWarning" class="warning-banner hidden">TECH SPEED — SLOW DOWN — DQ RISK</div>
@@ -666,6 +678,8 @@
       <div class="meta-cell"><div class="cell-label">Dist Done</div><div class="meta-value" id="distDone">&mdash;</div></div>
       <div class="meta-cell"><div class="cell-label">Time Left</div><div class="meta-value" id="timeLeft">&mdash;</div></div>
       <div class="meta-cell"><div class="cell-label">Elapsed</div><div class="meta-value" id="elapsed">&mdash;</div></div>
+      <div class="meta-cell"><div class="cell-label">Elev</div><div class="meta-value" id="curElev">&mdash;</div></div>
+      <div class="meta-cell"><div class="cell-label">Elev &Delta;</div><div class="meta-value" id="elevDelta">&mdash;</div></div>
     </div>
     <!-- G-PAD VISUALIZATION -->
     <div class="g-pad-container" id="gPadContainer">
@@ -733,6 +747,13 @@
     <div class="info-line"><span class="k">Peak Lateral G</span><span class="v" id="finalPeakLatG">&mdash;</span></div>
     <div class="info-line"><span class="k">Peak Longitudinal G</span><span class="v" id="finalPeakLongG">&mdash;</span></div>
     <div class="info-line"><span class="k">Splits Logged</span><span class="v" id="finalSplits">&mdash;</span></div>
+    <div class="info-line"><span class="k">Peak Elevation</span><span class="v" id="finalAltPeak">&mdash;</span></div>
+    <div class="info-line"><span class="k">Min Elevation</span><span class="v" id="finalAltMin">&mdash;</span></div>
+    <div class="info-line"><span class="k">Net Elev Change</span><span class="v" id="finalAltNet">&mdash;</span></div>
+    <div class="info-line"><span class="k">Elev Gain / Loss</span><span class="v" id="finalAltGainLoss">&mdash;</span></div>
+    <div class="info-line"><span class="k">Network Events</span><span class="v" id="finalNetEvents">&mdash;</span></div>
+    <div class="info-line"><span class="k">Offline Time</span><span class="v" id="finalNetOffline">&mdash;</span></div>
+    <div class="info-line"><span class="k">Avg Probe Latency</span><span class="v" id="finalNetLatency">&mdash;</span></div>
 
     <div class="section-label">Export Race Data</div>
     <div class="export-grid">
@@ -935,6 +956,17 @@ const state = {
   splits: [], nextSplitIdx: 0, sprintMode: false,
   courseNotes: [], nextNoteIdx: 0, hazardMuted: false, lastSpokenNoteIdx: -1,
   selectedVoice: null,
+  techAmberSpoken: false,
+  // Altitude tracking (meters; displayed in feet on US race screens)
+  altStart: null, altPeak: null, altMin: null, altLast: null, altGainM: 0, altLossM: 0,
+  // Network: 5-layer model — L1 onLine / L2 type / L3 effectiveType / L4 downlink+rtt / L5 active probe
+  network: {
+    online: (typeof navigator !== 'undefined') ? navigator.onLine : true,
+    type: null, effectiveType: null, downlink: null, rtt: null,
+    probeOk: null, probeLatencyMs: null, lastProbeTs: 0,
+    events: []  // { t, online, type, effectiveType, downlink, rtt, probeOk, probeLatencyMs }
+  },
+  netProbeTimer: null,
   deviceLabel: localStorage.getItem('orr_device_label') || ''
 };
 
@@ -1091,7 +1123,18 @@ function startGps() {
 function onGpsFix(pos) {
   const t = pos.timestamp;
   state.lastFixTime = t;
-  const fix = { t, lat: pos.coords.latitude, lng: pos.coords.longitude, speed_ms: pos.coords.speed, accuracy: pos.coords.accuracy, heading_gps: pos.coords.heading };
+  // Sync to GPS time: offset local clock to match device-reported fix time.
+  // EMA smoothing so a single bad fix can't yank the clock.
+  const offset = t - Date.now();
+  state.gpsTimeOffsetMs = state.gpsTimeOffsetMs === 0 ? offset : (0.9 * state.gpsTimeOffsetMs + 0.1 * offset);
+  const fix = {
+    t, lat: pos.coords.latitude, lng: pos.coords.longitude,
+    alt: pos.coords.altitude, alt_acc: pos.coords.altitudeAccuracy,
+    speed_ms: pos.coords.speed, accuracy: pos.coords.accuracy, heading_gps: pos.coords.heading,
+    // Network snapshot so we can map dead zones post-race
+    net_online: state.network.online, net_effective: state.network.effectiveType,
+    net_probe_ok: state.network.probeOk, net_probe_ms: state.network.probeLatencyMs
+  };
   const acc = fix.accuracy;
   let quality = 'bad';
   if (acc !== null && acc < 10) quality = 'ok';
@@ -1239,6 +1282,90 @@ function onVoiceChange(name) {
   }
   // Preview the voice
   speak(pick(['This is your new voice. You\'re welcome.', 'How do I sound? I think I sound amazing.', 'Voice updated. Still smarter than your navigator.', 'New voice, same attitude. Let\'s race.']), true);
+}
+
+/* =============== NETWORK MONITOR (5 layers) =============== */
+// L1: navigator.onLine (browser guess, often wrong on iOS)
+// L2: navigator.connection.type (wifi/cellular)  -- Android+desktop only
+// L3: navigator.connection.effectiveType (4g/3g/slow-2g) -- Android+desktop only
+// L4: navigator.connection.downlink (Mbps) + rtt (ms)  -- Android+desktop only
+// L5: Active probe (HEAD to Cloudflare trace) every 30s with 5s timeout → true reachability + real latency
+function snapshotNetworkBase() {
+  state.network.online = (typeof navigator !== 'undefined') ? !!navigator.onLine : true;
+  const c = (typeof navigator !== 'undefined') ? (navigator.connection || navigator.mozConnection || navigator.webkitConnection) : null;
+  if (c) {
+    state.network.type = c.type || null;
+    state.network.effectiveType = c.effectiveType || null;
+    state.network.downlink = (typeof c.downlink === 'number') ? c.downlink : null;
+    state.network.rtt = (typeof c.rtt === 'number') ? c.rtt : null;
+  }
+}
+function logNetworkEvent() {
+  const n = state.network;
+  state.network.events.push({
+    t: Date.now(), online: n.online, type: n.type, effectiveType: n.effectiveType,
+    downlink: n.downlink, rtt: n.rtt, probeOk: n.probeOk, probeLatencyMs: n.probeLatencyMs
+  });
+  updateNetworkDisplay();
+}
+async function probeNetwork() {
+  // Active reachability probe — small, CORS-friendly, cache-busted.
+  const url = 'https://www.cloudflare.com/cdn-cgi/trace?_t=' + Date.now();
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 5000);
+  const t0 = performance.now();
+  try {
+    const resp = await fetch(url, { method: 'GET', cache: 'no-store', signal: ctl.signal });
+    const ok = resp.ok;
+    const latency = performance.now() - t0;
+    state.network.probeOk = ok;
+    state.network.probeLatencyMs = ok ? Math.round(latency) : null;
+  } catch (e) {
+    state.network.probeOk = false;
+    state.network.probeLatencyMs = null;
+  } finally {
+    clearTimeout(timer);
+    state.network.lastProbeTs = Date.now();
+    logNetworkEvent();
+  }
+}
+function updateNetworkDisplay() {
+  const n = state.network;
+  ['netBadgeSetup','netBadgePre','netBadgeRace'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    let label, cls;
+    if (n.probeOk === false || n.online === false) {
+      label = 'OFFLINE'; cls = 'off';
+    } else if (n.probeOk === true) {
+      const eff = n.effectiveType ? n.effectiveType.toUpperCase() : 'NET';
+      label = eff + ' ' + n.probeLatencyMs + 'ms';
+      cls = n.probeLatencyMs > 400 ? 'mid' : 'ok';
+    } else {
+      const eff = n.effectiveType ? n.effectiveType.toUpperCase() : 'NET';
+      label = eff + ' …';
+      cls = 'mid';
+    }
+    el.textContent = label;
+    el.classList.remove('ok','mid','off');
+    el.classList.add(cls);
+  });
+}
+function initNetworkMonitor() {
+  snapshotNetworkBase();
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online', () => { snapshotNetworkBase(); logNetworkEvent(); });
+    window.addEventListener('offline', () => { snapshotNetworkBase(); logNetworkEvent(); });
+  }
+  const c = (typeof navigator !== 'undefined') ? (navigator.connection || navigator.mozConnection || navigator.webkitConnection) : null;
+  if (c && typeof c.addEventListener === 'function') {
+    c.addEventListener('change', () => { snapshotNetworkBase(); logNetworkEvent(); });
+  }
+  // Kick off first probe immediately, then every 30s
+  probeNetwork();
+  if (state.netProbeTimer) clearInterval(state.netProbeTimer);
+  state.netProbeTimer = setInterval(probeNetwork, 30000);
+  updateNetworkDisplay();
 }
 
 /* =============== SPLITS =============== */
@@ -1450,6 +1577,10 @@ function launchRace() {
     state.lastPos = null; state.sprintMode = false;
     state.peakGLat = 0; state.peakGLong = 0;
     state.filteredGLat = 0; state.filteredGLong = 0;
+    state.techAmberSpoken = false;
+    state.altStart = null; state.altPeak = null; state.altMin = null;
+    state.altLast = null; state.altGainM = 0; state.altLossM = 0;
+    state.network.events = [];
     buildSplits();
     initCourseNotes();
     if (state.motionEnabled) {
@@ -1458,7 +1589,8 @@ function launchRace() {
     }
     clearInterval(prestageTimer); prestageTimer = null;
     const r = RACES[state.race];
-    document.getElementById('raceInfo').textContent = r.name.split('(')[0].trim() + ' | ' + state.classSpeed + ' CLASS';
+    const raceInfoEl = document.getElementById('raceInfo');
+    if (raceInfoEl) raceInfoEl.textContent = r.name.split('(')[0].trim() + ' | ' + state.classSpeed + ' CLASS';
     show('race');
     speak(pick(['Clock is hot. Let\'s go racing!', 'We are live! Show me what this Durango can do.', 'Clock running. Time to earn that trophy.']), true);
     state.raceTicker = setInterval(tickRace, 100);
@@ -1479,12 +1611,35 @@ function handleRaceFix(fix) {
   fix.g_long = state.lastAccel.y - state.gravityOffset.y;
   if (state.lastPos) {
     const dM = haversine(state.lastPos, fix);
-    const speedCheck = fix.speed_ms !== null ? fix.speed_ms : (dM / ((fix.t - state.lastPos.t) / 1000));
-    if (speedCheck > 2 && dM < 500) state.distanceMi += dM * MI_PER_M;
+    const dt = (fix.t - state.lastPos.t) / 1000;
+    const speedCheck = fix.speed_ms !== null ? fix.speed_ms : (dt > 0 ? dM / dt : 0);
+    // Accumulate distance only when moving, jump is reasonable, and fix accuracy is acceptable.
+    if (speedCheck > 2 && dM < 500 && fix.accuracy !== null && fix.accuracy < 30) {
+      state.distanceMi += dM * MI_PER_M;
+    }
+    // Peak speed fallback: if GPS didn't report speed, compute from position delta on a good fix.
+    if (fix.speed_ms === null && dt > 0 && dt < 5 && fix.accuracy !== null && fix.accuracy < 25) {
+      const mph = (dM / dt) * MS_TO_MPH;
+      if (mph > state.peakMph && mph < 250) state.peakMph = mph;
+    }
   }
   if (fix.speed_ms !== null) {
     const mph = fix.speed_ms * MS_TO_MPH;
     if (mph > state.peakMph) state.peakMph = mph;
+  }
+  // Altitude tracking — only trust fixes with a usable altitude and decent accuracy
+  if (fix.alt !== null && fix.alt !== undefined && !isNaN(fix.alt) &&
+      (fix.alt_acc === null || fix.alt_acc < 50)) {
+    if (state.altStart === null) state.altStart = fix.alt;
+    if (state.altPeak === null || fix.alt > state.altPeak) state.altPeak = fix.alt;
+    if (state.altMin === null || fix.alt < state.altMin) state.altMin = fix.alt;
+    if (state.altLast !== null) {
+      const d = fix.alt - state.altLast;
+      // Dead-band filter: ignore sub-2m noise; otherwise count as climb or descent
+      if (d > 2) state.altGainM += d;
+      else if (d < -2) state.altLossM += -d;
+    }
+    state.altLast = fix.alt;
   }
   state.samples.push(fix);
 }
@@ -1531,8 +1686,18 @@ function tickRace() {
     curEl.classList.remove('warn','danger');
     const tech = state.classSpeed + r.tech_above_class;
     if (curMph >= tech) { curEl.classList.add('danger'); document.getElementById('dqWarning').classList.remove('hidden'); }
-    else if (curMph >= tech - 3) { curEl.classList.add('warn'); document.getElementById('dqWarning').classList.add('hidden'); }
-    else { document.getElementById('dqWarning').classList.add('hidden'); }
+    else if (curMph >= tech - 3) {
+      curEl.classList.add('warn'); document.getElementById('dqWarning').classList.add('hidden');
+      if (!state.techAmberSpoken) {
+        state.techAmberSpoken = true;
+        speak(pick(['Easing close to tech. Back off a hair.', 'Creeping on tech speed. Roll out a little.', 'Tech window. Ease up.']), false);
+      }
+    }
+    else {
+      document.getElementById('dqWarning').classList.add('hidden');
+      // Hysteresis: re-arm only when we drop 5 mph below the amber band
+      if (curMph < tech - 8) state.techAmberSpoken = false;
+    }
   } else { curEl.textContent = '\u2014'; }
 
   document.getElementById('avgSpd').textContent = avgMph > 0 ? avgMph.toFixed(1) : '\u2014';
@@ -1541,6 +1706,21 @@ function tickRace() {
   document.getElementById('timeLeft').textContent = fmtTime(Math.max(timeRemainSec, 0));
   document.getElementById('elapsed').textContent = fmtTime(elapsedSec);
   document.getElementById('elapsedTop').textContent = fmtTime(elapsedSec);
+
+  // Elevation readouts (meters → feet, 1 m = 3.28084 ft)
+  const elevEl = document.getElementById('curElev');
+  const elevDeltaEl = document.getElementById('elevDelta');
+  if (state.altLast !== null) {
+    const ft = state.altLast * 3.28084;
+    elevEl.textContent = ft.toFixed(0) + ' ft';
+    if (state.altStart !== null) {
+      const dFt = (state.altLast - state.altStart) * 3.28084;
+      elevDeltaEl.textContent = (dFt >= 0 ? '+' : '') + dFt.toFixed(0) + ' ft';
+    }
+  } else {
+    elevEl.textContent = '\u2014';
+    elevDeltaEl.textContent = '\u2014';
+  }
 
   // G-Pad
   if (state.motionEnabled) {
@@ -1581,6 +1761,13 @@ function tickRace() {
   if (state.sprintMode) {
     document.getElementById('sprintMsg').textContent = distToFinish.toFixed(2) + ' mi to finish | Delta ' + fmtDelta(deltaSec) + 's';
   }
+  // Proximity finish: physical distance to finish coord < 50m AND >=80% of course covered.
+  // Additional path to the distance-accumulator trigger — safe because both guards must be true.
+  if (state.lastPos && state.distanceMi > r.distance_mi * 0.8) {
+    const finishCoord = effectiveCoords(state.race).finish;
+    const distToFinishM = haversine(state.lastPos, finishCoord);
+    if (distToFinishM < 50) { finishRun('auto'); return; }
+  }
   if (state.distanceMi >= r.distance_mi) finishRun('auto');
 }
 
@@ -1595,7 +1782,7 @@ function finishRun(reason) {
   const finalDelta = elapsedSec - perfectSec;
   const avgMph = state.distanceMi > 0 ? (state.distanceMi / (elapsedSec / 3600)) : 0;
   document.getElementById('doneRaceInfo').textContent = state.classSpeed + ' CLASS';
-  document.getElementById('finalDelta').textContent = fmtDelta(finalDelta);
+  document.getElementById('finalDelta').textContent = reason === 'abort' ? '\u2014' : fmtDelta(finalDelta);
   let verdict;
   if (Math.abs(finalDelta) < 0.1) verdict = 'PERFECT RUN';
   else if (Math.abs(finalDelta) < 0.25) verdict = 'PODIUM CONTENDER';
@@ -1615,6 +1802,37 @@ function finishRun(reason) {
   document.getElementById('finalPeakLongG').textContent = state.peakGLong.toFixed(2) + ' G';
   const splitsPassed = state.splits.filter(s => s.actual_sec !== null).length;
   document.getElementById('finalSplits').textContent = splitsPassed + ' / ' + state.splits.length;
+
+  // Elevation summary (meters → feet)
+  const fmtFt = m => (m === null || m === undefined || isNaN(m)) ? '\u2014' : (m * 3.28084).toFixed(0) + ' ft';
+  document.getElementById('finalAltPeak').textContent = fmtFt(state.altPeak);
+  document.getElementById('finalAltMin').textContent = fmtFt(state.altMin);
+  const altNetM = (state.altStart !== null && state.altLast !== null) ? (state.altLast - state.altStart) : null;
+  document.getElementById('finalAltNet').textContent = altNetM === null ? '\u2014' :
+    (altNetM >= 0 ? '+' : '') + (altNetM * 3.28084).toFixed(0) + ' ft';
+  document.getElementById('finalAltGainLoss').textContent =
+    '+' + (state.altGainM * 3.28084).toFixed(0) + ' / -' + (state.altLossM * 3.28084).toFixed(0) + ' ft';
+
+  // Network summary
+  const evs = state.network.events;
+  document.getElementById('finalNetEvents').textContent = evs.length;
+  // Offline time: count duration between offline events and subsequent online events
+  let offlineMs = 0, offSince = null;
+  evs.forEach(e => {
+    const isOff = e.probeOk === false || e.online === false;
+    if (isOff && offSince === null) offSince = e.t;
+    else if (!isOff && offSince !== null) { offlineMs += (e.t - offSince); offSince = null; }
+  });
+  if (offSince !== null) offlineMs += (Date.now() - offSince);
+  document.getElementById('finalNetOffline').textContent = (offlineMs / 1000).toFixed(1) + ' s';
+  // Average probe latency over successful probes
+  const oks = evs.filter(e => e.probeOk === true && typeof e.probeLatencyMs === 'number');
+  if (oks.length > 0) {
+    const avgLat = oks.reduce((s, e) => s + e.probeLatencyMs, 0) / oks.length;
+    document.getElementById('finalNetLatency').textContent = avgLat.toFixed(0) + ' ms (n=' + oks.length + ')';
+  } else {
+    document.getElementById('finalNetLatency').textContent = '\u2014';
+  }
   if (reason !== 'abort') {
     const absD = Math.abs(finalDelta).toFixed(2);
     const dir = finalDelta >= 0 ? 'slow' : 'fast';
@@ -1628,6 +1846,31 @@ function finishRun(reason) {
   } else {
     speak(pick(['Run aborted. Data saved. We\'ll get the next one.', 'Abort confirmed. No shame. Data\'s in the box.']), true);
   }
+  // Auto-save summary + compact sample set to localStorage (last 3 runs).
+  // Safe: wrapped in try/catch so storage quota errors can never break the done screen.
+  try {
+    const summary = {
+      savedAt: Date.now(), race: state.race, raceName: r.name,
+      classSpeed: state.classSpeed, reason: reason,
+      startedAtMs: state.startedAtMs, elapsedSec: elapsedSec,
+      perfectSec: perfectSec, deltaSec: finalDelta, verdict: verdict,
+      distanceMi: state.distanceMi, avgMph: avgMph, peakMph: state.peakMph,
+      peakGLat: state.peakGLat, peakGLong: state.peakGLong,
+      device: state.deviceLabel || 'unlabeled',
+      splits: state.splits,
+      gps_sample_count: state.samples.length,
+      motion_sample_count: state.motionSamples.length,
+      // Decimated GPS (every 10th sample) for quick replay without blowing localStorage.
+      gps_decimated: state.samples.filter((_, i) => i % 10 === 0).map(s => ({
+        t: s.t, lat: s.lat, lng: s.lng, speed_ms: s.speed_ms, accuracy: s.accuracy
+      }))
+    };
+    let history = [];
+    try { history = JSON.parse(localStorage.getItem('orr_run_history') || '[]'); } catch (e) { history = []; }
+    history.unshift(summary);
+    history = history.slice(0, 3);
+    localStorage.setItem('orr_run_history', JSON.stringify(history));
+  } catch (e) { console.warn('Auto-save failed:', e); }
   show('done');
 }
 
@@ -1641,13 +1884,23 @@ function releaseWakeLock() { if (wakeLock) { wakeLock.release(); wakeLock = null
 // 1. GPS Track CSV
 function exportGpsCsv() {
   let csv = '# device: ' + (state.deviceLabel || 'unlabeled') + '\n';
-  csv += 'timestamp_utc_ms,elapsed_sec,latitude,longitude,speed_mph,speed_ms,accuracy_m,heading_deg\n';
+  csv += 'timestamp_utc_ms,elapsed_sec,latitude,longitude,altitude_m,altitude_accuracy_m,altitude_ft,speed_mph,speed_ms,accuracy_m,heading_deg,net_online,net_effective,net_probe_ok,net_probe_ms\n';
   state.samples.forEach(s => {
     const elapsed = ((s.t - state.startedAtMs) / 1000).toFixed(3);
     const mph = s.speed_ms !== null ? (s.speed_ms * MS_TO_MPH).toFixed(2) : '';
     const ms = s.speed_ms !== null ? s.speed_ms.toFixed(3) : '';
     const hdg = s.heading_gps !== null && s.heading_gps !== undefined ? s.heading_gps.toFixed(1) : '';
-    csv += s.t + ',' + elapsed + ',' + s.lat.toFixed(7) + ',' + s.lng.toFixed(7) + ',' + mph + ',' + ms + ',' + s.accuracy.toFixed(1) + ',' + hdg + '\n';
+    const alt = (s.alt !== null && s.alt !== undefined) ? s.alt.toFixed(2) : '';
+    const altAcc = (s.alt_acc !== null && s.alt_acc !== undefined) ? s.alt_acc.toFixed(2) : '';
+    const altFt = (s.alt !== null && s.alt !== undefined) ? (s.alt * 3.28084).toFixed(1) : '';
+    const netOnline = (s.net_online === true) ? '1' : (s.net_online === false) ? '0' : '';
+    const netEff = s.net_effective || '';
+    const netProbe = (s.net_probe_ok === true) ? '1' : (s.net_probe_ok === false) ? '0' : '';
+    const netMs = (s.net_probe_ms !== null && s.net_probe_ms !== undefined) ? s.net_probe_ms : '';
+    csv += s.t + ',' + elapsed + ',' + s.lat.toFixed(7) + ',' + s.lng.toFixed(7) + ',' +
+           alt + ',' + altAcc + ',' + altFt + ',' +
+           mph + ',' + ms + ',' + s.accuracy.toFixed(1) + ',' + hdg + ',' +
+           netOnline + ',' + netEff + ',' + netProbe + ',' + netMs + '\n';
   });
   downloadBlob(new Blob([csv], { type: 'text/csv' }), fileTag() + '-gps.csv');
 }
@@ -1676,6 +1929,10 @@ function exportGpx() {
     const iso = new Date(s.t).toISOString();
     const spd = s.speed_ms !== null ? s.speed_ms.toFixed(3) : '0';
     gpx += '      <trkpt lat="' + s.lat.toFixed(7) + '" lon="' + s.lng.toFixed(7) + '">\n';
+    // <ele> MUST come before <time> per GPX 1.1 schema ordering
+    if (s.alt !== null && s.alt !== undefined && !isNaN(s.alt)) {
+      gpx += '        <ele>' + s.alt.toFixed(2) + '</ele>\n';
+    }
     gpx += '        <time>' + iso + '</time>\n';
     gpx += '        <speed>' + spd + '</speed>\n';
     gpx += '        <hdop>' + (s.accuracy / 5).toFixed(1) + '</hdop>\n';
@@ -1715,10 +1972,32 @@ function exportJson() {
       peak_g_lateral: state.peakGLat,
       peak_g_longitudinal: state.peakGLong
     },
+    elevation: {
+      start_m: state.altStart, peak_m: state.altPeak, min_m: state.altMin, last_m: state.altLast,
+      start_ft: state.altStart !== null ? state.altStart * 3.28084 : null,
+      peak_ft: state.altPeak !== null ? state.altPeak * 3.28084 : null,
+      min_ft: state.altMin !== null ? state.altMin * 3.28084 : null,
+      last_ft: state.altLast !== null ? state.altLast * 3.28084 : null,
+      net_delta_m: (state.altStart !== null && state.altLast !== null) ? (state.altLast - state.altStart) : null,
+      gain_m: state.altGainM, loss_m: state.altLossM,
+      gain_ft: state.altGainM * 3.28084, loss_ft: state.altLossM * 3.28084
+    },
+    network: {
+      final_snapshot: {
+        online: state.network.online, type: state.network.type,
+        effective_type: state.network.effectiveType,
+        downlink_mbps: state.network.downlink, rtt_ms: state.network.rtt,
+        probe_ok: state.network.probeOk, probe_latency_ms: state.network.probeLatencyMs
+      },
+      events: state.network.events
+    },
     gps_samples: state.samples.map(s => ({
       t: s.t, lat: s.lat, lng: s.lng,
+      alt: s.alt, alt_acc: s.alt_acc,
       speed_ms: s.speed_ms, accuracy: s.accuracy,
-      heading_gps: s.heading_gps
+      heading_gps: s.heading_gps,
+      net_online: s.net_online, net_effective: s.net_effective,
+      net_probe_ok: s.net_probe_ok, net_probe_ms: s.net_probe_ms
     })),
     motion_samples: state.motionSamples,
     splits: state.splits
@@ -1842,6 +2121,9 @@ function resetAll() {
   document.getElementById('gPadContainer').classList.remove('active');
   document.getElementById('courseNotesContainer').classList.remove('active');
   state.courseNotes = []; state.nextNoteIdx = 0; state.lastSpokenNoteIdx = -1;
+  state.altStart = null; state.altPeak = null; state.altMin = null;
+  state.altLast = null; state.altGainM = 0; state.altLossM = 0;
+  state.network.events = [];
   renderSetup();
   show('setup');
 }
@@ -1897,6 +2179,7 @@ document.getElementById('cnMuteBtn').onclick = () => {
 loadCustomCoords();
 renderSetup();
 startGps();
+initNetworkMonitor();
 // Restore device label
 if (state.deviceLabel) {
   document.getElementById('deviceLabel').value = state.deviceLabel;
