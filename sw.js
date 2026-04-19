@@ -3,26 +3,40 @@
    Strategy: cache-first for own-origin assets, network-first for cross-origin (probe, fonts, etc.)
    Bump CACHE_VERSION whenever index.html changes to force a refresh. */
 
-const CACHE_VERSION = 'v1.0.3';
+const CACHE_VERSION = 'v1.0.4';
 const CACHE_NAME = '915rc-' + CACHE_VERSION;
 
 // Everything we want guaranteed offline. Keep this list minimal — all app logic lives in index.html.
+// (The combined-logo image is inlined as a data URI, so no separate logo file is required here.)
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
-  './playstore-icon.png',
-  './915rc-logo.jpg'
+  './playstore-icon.png'
 ];
 
 // INSTALL — pre-cache the shell so first launch from home screen works offline.
+// Important: cache each asset individually so one missing/broken URL can't reject the
+// entire install (which would keep the OLD service worker active and block the update).
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
-      .catch(err => console.warn('[SW] install pre-cache failed:', err))
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    const results = await Promise.allSettled(
+      APP_SHELL.map(async url => {
+        try {
+          const resp = await fetch(url, { cache: 'no-cache' });
+          if (resp && resp.ok) await cache.put(url, resp);
+          else throw new Error('bad response ' + (resp && resp.status));
+        } catch (e) {
+          console.warn('[SW] failed to pre-cache', url, e && e.message);
+          throw e;
+        }
+      })
+    );
+    const fails = results.filter(r => r.status === 'rejected').length;
+    if (fails) console.warn('[SW] pre-cache completed with', fails, 'failures out of', APP_SHELL.length);
+    await self.skipWaiting();
+  })());
 });
 
 // ACTIVATE — drop any old versions so we don't leak storage across deploys.

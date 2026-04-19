@@ -752,6 +752,7 @@
   function success(){
     try { sessionStorage.setItem('rcPinOk', '1'); } catch(e){}
     gate.classList.add('hidden');
+    try { window.dispatchEvent(new Event('rcPinSuccess')); } catch(e){}
   }
   function press(k){
     if (k === 'del') {
@@ -873,7 +874,7 @@
       <button class="sensor-btn" onclick="setDeviceLabel('Tim - Windshield')" id="labelTim">Tim - Windshield</button>
       <button class="sensor-btn" onclick="setDeviceLabel('Josh - Navigator')" id="labelJosh">Josh - Navigator</button>
     </div>
-    <input type="text" id="deviceLabel" placeholder="Custom label (e.g. Tim - Windshield)" value="" style="width:100%;box-sizing:border-box;padding:10px 12px;font-family:var(--mono);font-size:14px;background:#111;color:var(--text);border:1px solid var(--edge-2);border-radius:6px;margin-bottom:12px;" onchange="state.deviceLabel=this.value;localStorage.setItem('orr_device_label',this.value);">
+    <input type="text" id="deviceLabel" placeholder="Custom label (e.g. Tim - Windshield)" value="" style="width:100%;box-sizing:border-box;padding:10px 12px;font-family:var(--mono);font-size:14px;background:#111;color:var(--text);border:1px solid var(--edge-2);border-radius:6px;margin-bottom:12px;" onchange="state.deviceLabel=this.value;try{localStorage.setItem('orr_device_label',this.value);}catch(e){}">
 
     <div class="section-label">Sensors</div>
     <div class="sensor-row">
@@ -974,6 +975,7 @@
   </div>
   <div class="split-bar" id="splitBar"></div>
   <div class="telemetry">
+    <div id="raceInfo" style="text-align:center; font-family:var(--block); font-weight:700; letter-spacing:2px; color:var(--race-red); font-size:14px; padding:4px 0 6px;">&mdash;</div>
     <div class="delta-block" id="deltaBlock">
       <div class="delta-label">Time Delta</div>
       <div class="delta-value" id="deltaVal">+0.00</div>
@@ -1090,7 +1092,7 @@ const RACES = {
   bborr_south: { name: 'BBORR Leg 1 (Ft Stockton to Sanderson)', detail: '59.00 mi | US 285 South', distance_mi: 59.00, start: { lat: 30.8500, lng: -102.8800 }, finish: { lat: 30.1435, lng: -102.3940 }, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,165], tech_above_class: 15, min_below_class: 30 },
   bborr_north: { name: 'BBORR Leg 2 (Sanderson to Ft Stockton)', detail: '59.00 mi | US 285 North', distance_mi: 59.00, start: { lat: 30.1435, lng: -102.3940 }, finish: { lat: 30.8500, lng: -102.8800 }, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,165], tech_above_class: 15, min_below_class: 30 },
   sscc: { name: 'Silver State Classic Challenge', detail: '90.00 mi | Nevada SR-318', distance_mi: 90.00, start: { lat: 38.8600, lng: -115.0200 }, finish: { lat: 37.6000, lng: -115.2200 }, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,170,180], tech_above_class: 15, min_below_class: 30 },
-  norc: { name: 'Nevada Open Road Challenge', detail: '90.00 mi | Nevada SR-318 (Down & Back)', distance_mi: 90.00, start: { lat: 38.8600, lng: -115.0200 }, finish: { lat: 37.6000, lng: -115.2200 }, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,170,180], tech_above_class: 15, min_below_class: 30 }
+  norc: { name: 'Nevada Open Road Challenge', detail: '90.00 mi | Nevada SR-318 (Down & Back)', distance_mi: 90.00, start: { lat: 38.8600, lng: -115.0200 }, finish: { lat: 38.8600, lng: -115.0200 }, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,170,180], tech_above_class: 15, min_below_class: 30 }
 };
 
 /* =============== COURSE NOTES DATA =============== */
@@ -1441,9 +1443,9 @@ function onGpsFix(pos) {
   const t = pos.timestamp;
   state.lastFixTime = t;
   // Sync to GPS time: offset local clock to match device-reported fix time.
-  // EMA smoothing so a single bad fix can't yank the clock.
-  const offset = t - Date.now();
-  state.gpsTimeOffsetMs = state.gpsTimeOffsetMs === 0 ? offset : (0.9 * state.gpsTimeOffsetMs + 0.1 * offset);
+  // Apply directly (no EMA) — GPS timestamps don't jitter, and smoothing
+  // made the UTC clock lag convergence during a critical prestage window.
+  state.gpsTimeOffsetMs = t - Date.now();
   const fix = {
     t, lat: pos.coords.latitude, lng: pos.coords.longitude,
     alt: pos.coords.altitude, alt_acc: pos.coords.altitudeAccuracy,
@@ -1468,7 +1470,24 @@ function onGpsFix(pos) {
   if (state.raceActive) handleRaceFix(fix);
   state.lastPos = fix;
 }
-function onGpsError(err) { console.warn('GPS error', err); }
+function onGpsError(err) {
+  console.warn('GPS error', err);
+  // Surface GPS failures on the badges so the navigator sees them.
+  let label = 'GPS ERR';
+  if (err && typeof err.code === 'number') {
+    if (err.code === 1) label = 'GPS DENIED';
+    else if (err.code === 2) label = 'GPS UNAVAIL';
+    else if (err.code === 3) label = 'GPS TIMEOUT';
+  }
+  ['gpsStatSetup','gpsStatPre'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = label;
+  });
+  ['gpsDotSetup','gpsDotPre','gpsDotRace'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.classList.remove('ok','mid'); }
+  });
+  const sg = document.getElementById('sensGps'); if (sg) sg.textContent = label;
+}
 
 /* =============== MOTION SENSORS =============== */
 async function requestMotionPermission() {
@@ -1493,6 +1512,7 @@ async function requestMotionPermission() {
     return true;
   } catch (e) { alert('Could not enable motion sensors: ' + e.message); return false; }
 }
+let lastMotionPush = 0;
 function onMotion(e) {
   const a = e.accelerationIncludingGravity || e.acceleration;
   if (!a) return;
@@ -1508,13 +1528,18 @@ function onMotion(e) {
     state.filteredGLong = 0.8 * state.filteredGLong + 0.2 * gLong;
     if (Math.abs(state.filteredGLat) > state.peakGLat) state.peakGLat = Math.abs(state.filteredGLat);
     if (Math.abs(state.filteredGLong) > state.peakGLong) state.peakGLong = Math.abs(state.filteredGLong);
-    // Record motion sample
-    state.motionSamples.push({
-      t: Date.now(), ax: a.x||0, ay: a.y||0, az: a.z||0,
-      gLat: state.filteredGLat, gLong: state.filteredGLong,
-      rAlpha: state.lastGyro.alpha, rBeta: state.lastGyro.beta, rGamma: state.lastGyro.gamma,
-      heading: state.heading
-    });
+    // Throttle sample recording to ~10 Hz so a 36-minute run doesn't
+    // balloon the motionSamples array past device memory limits.
+    const now = Date.now();
+    if (now - lastMotionPush >= 100) {
+      lastMotionPush = now;
+      state.motionSamples.push({
+        t: now, ax: a.x||0, ay: a.y||0, az: a.z||0,
+        gLat: state.filteredGLat, gLong: state.filteredGLong,
+        rAlpha: state.lastGyro.alpha, rBeta: state.lastGyro.beta, rGamma: state.lastGyro.gamma,
+        heading: state.heading
+      });
+    }
   }
 }
 function onOrientation(e) {
@@ -1585,17 +1610,22 @@ function loadVoices() {
 }
 function setDeviceLabel(label) {
   state.deviceLabel = label;
-  localStorage.setItem('orr_device_label', label);
+  try { localStorage.setItem('orr_device_label', label); } catch(e) {}
   document.getElementById('deviceLabel').value = label;
   document.getElementById('labelTim').classList.toggle('enabled', label === 'Tim - Windshield');
   document.getElementById('labelJosh').classList.toggle('enabled', label === 'Josh - Navigator');
   speak(pick([label + '. Locked in.', label + ' device. Got it.', label + '. I know who you are now.']), true);
 }
 function onVoiceChange(name) {
-  if (!name) { state.selectedVoice = null; localStorage.removeItem('orr_voice_pref'); }
-  else {
+  if (!name) {
+    state.selectedVoice = null;
+    try { localStorage.removeItem('orr_voice_pref'); } catch(e) {}
+  } else {
     const match = window.speechSynthesis.getVoices().find(v => v.name === name);
-    if (match) { state.selectedVoice = match; localStorage.setItem('orr_voice_pref', name); }
+    if (match) {
+      state.selectedVoice = match;
+      try { localStorage.setItem('orr_voice_pref', name); } catch(e) {}
+    }
   }
   // Preview the voice
   speak(pick(['This is your new voice. You\'re welcome.', 'How do I sound? I think I sound amazing.', 'Voice updated. Still smarter than your navigator.', 'New voice, same attitude. Let\'s race.']), true);
@@ -1740,7 +1770,9 @@ function checkSplits(elapsedSec, distMi) {
       else if (s.delta_sec < 0) msg = miStr + ', ' + absD + ' fast. ' + pick(['Whoa there cowboy. Slow it down.', 'Too hot! Back off!', 'Easy killer, save it for the finish.']);
       else if (s.delta_sec > 0 && s.delta_sec < 1) msg = miStr + ', ' + absD + ' slow. ' + pick(['Tiny bit lazy. Pick it up.', 'A little slow. Push.', 'Just a tick behind. You\'re fine.']);
       else msg = miStr + ', ' + absD + ' slow. ' + pick(['Wake up! You\'re losing time.', 'Come on, push it!', 'We\'re bleeding time. Go!']);
-      speak(msg, s.type === 'sprint');
+      // Splits queue behind in-flight speech (non-priority) so a course-note hazard
+      // can't be clobbered mid-sentence by the next quarter-mile sprint split.
+      speak(msg, false);
       state.nextSplitIdx++;
     } else break;
   }
@@ -1836,7 +1868,14 @@ function enterPrestage() {
   speak(pick(['Prestage. Pick your start time. Let\'s do this.', 'Prestage active. Choose your window and strap in.', 'We\'re in prestage. Clock\'s waiting on you.']), true);
 }
 let lastSpokenCountdown = -1;
+let lastPickerRender = 0;
 function tickPrestage() {
+  // Auto-refresh the start picker every 5s so a lingering navigator
+  // can never tap a minute that's already past.
+  if (state.armedStartUtcMs === null) {
+    const t = Date.now();
+    if (t - lastPickerRender > 5000) { lastPickerRender = t; renderStartPicker(); }
+  }
   document.getElementById('gpsClock').textContent = fmtClock(nowUtcMs());
   if (state.armedStartUtcMs !== null) {
     const remainingMs = state.armedStartUtcMs - nowUtcMs();
@@ -1880,7 +1919,10 @@ function renderStartPicker() {
   const picker = document.getElementById('startPicker');
   picker.innerHTML = '';
   const now = nowUtcMs();
-  const nextMinute = Math.ceil(now / MS_PER_MIN) * MS_PER_MIN;
+  // First eligible minute is at least 5 seconds ahead so the navigator can't
+  // accidentally arm a minute that's about to tick past and fire GO immediately.
+  const earliest = now + 5000;
+  const nextMinute = Math.ceil(earliest / MS_PER_MIN) * MS_PER_MIN;
   for (let i = 0; i < 8; i++) {
     const ms = nextMinute + i * MS_PER_MIN;
     const d = new Date(ms);
@@ -1890,6 +1932,8 @@ function renderStartPicker() {
     btn.className = 'start-btn' + (state.armedStartUtcMs === ms ? ' armed' : '');
     btn.innerHTML = '<div style="font-size:10px;color:var(--muted);">UTC</div><div>' + hh + ':' + mm + ':00</div>';
     btn.onclick = () => {
+      // Hard guard: reject clicks on minutes that are already past or within 2 seconds of now.
+      if (ms - nowUtcMs() < 2000) { renderStartPicker(); return; }
       state.armedStartUtcMs = ms;
       renderStartPicker();
       document.getElementById('disarmBtn').style.display = 'block';
@@ -1953,7 +1997,9 @@ function handleRaceFix(fix) {
     const dt = (fix.t - state.lastPos.t) / 1000;
     const speedCheck = fix.speed_ms !== null ? fix.speed_ms : (dt > 0 ? dM / dt : 0);
     // Accumulate distance only when moving, jump is reasonable, and fix accuracy is acceptable.
-    if (speedCheck > 2 && dM < 500 && fix.accuracy !== null && fix.accuracy < 30) {
+    // 50 m accuracy gate (loosened from 30 m) keeps distance ticking through canyon cuts
+    // and bridge sections where consumer GPS routinely dips to 30–45 m.
+    if (speedCheck > 2 && dM < 500 && fix.accuracy !== null && fix.accuracy < 50) {
       state.distanceMi += dM * MI_PER_M;
     }
     // Peak speed fallback: if GPS didn't report speed, compute from position delta on a good fix.
@@ -1964,7 +2010,8 @@ function handleRaceFix(fix) {
   }
   if (fix.speed_ms !== null) {
     const mph = fix.speed_ms * MS_TO_MPH;
-    if (mph > state.peakMph) state.peakMph = mph;
+    // Sanity-bound: a single Doppler glitch can report 500+ mph; ignore anything > 250.
+    if (mph > state.peakMph && mph < 250) state.peakMph = mph;
   }
   // Altitude tracking — only trust fixes with a usable altitude and decent accuracy
   if (fix.alt !== null && fix.alt !== undefined && !isNaN(fix.alt) &&
@@ -2024,8 +2071,9 @@ function tickRace() {
     curEl.textContent = curMph.toFixed(0);
     curEl.classList.remove('warn','danger');
     const tech = state.classSpeed + r.tech_above_class;
+    // Amber pre-warning band: 8 mph below tech. Re-arm 13 mph below tech (5 mph hysteresis).
     if (curMph >= tech) { curEl.classList.add('danger'); document.getElementById('dqWarning').classList.remove('hidden'); }
-    else if (curMph >= tech - 3) {
+    else if (curMph >= tech - 8) {
       curEl.classList.add('warn'); document.getElementById('dqWarning').classList.add('hidden');
       if (!state.techAmberSpoken) {
         state.techAmberSpoken = true;
@@ -2034,8 +2082,7 @@ function tickRace() {
     }
     else {
       document.getElementById('dqWarning').classList.add('hidden');
-      // Hysteresis: re-arm only when we drop 5 mph below the amber band
-      if (curMph < tech - 8) state.techAmberSpoken = false;
+      if (curMph < tech - 13) state.techAmberSpoken = false;
     }
   } else { curEl.textContent = '\u2014'; }
 
@@ -2251,7 +2298,12 @@ function finishRun(reason) {
 /* =============== WAKE LOCK =============== */
 let wakeLock = null;
 async function requestWakeLock() { try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {} }
-function releaseWakeLock() { if (wakeLock) { wakeLock.release(); wakeLock = null; } }
+function releaseWakeLock() {
+  if (wakeLock) {
+    try { wakeLock.release(); } catch(e) {}
+    wakeLock = null;
+  }
+}
 
 /* =============== 5 EXPORT FORMATS =============== */
 
@@ -2302,17 +2354,14 @@ function exportGpx() {
   gpx += '  <trk>\n    <name>915RC Race Run</name>\n    <trkseg>\n';
   state.samples.forEach(s => {
     const iso = new Date(s.t).toISOString();
-    const spd = s.speed_ms !== null ? s.speed_ms.toFixed(3) : '0';
     gpx += '      <trkpt lat="' + s.lat.toFixed(7) + '" lon="' + s.lng.toFixed(7) + '">\n';
-    // <ele> MUST come before <time> per GPX 1.1 schema ordering
+    // <ele> MUST come before <time> per GPX 1.1 schema ordering.
+    // <speed> and <hdop> intentionally omitted — <speed> is GPX 1.0 only, and the
+    // accuracy-to-HDOP conversion has no defined formula. Raw data is in the JSON/CSV exports.
     if (s.alt !== null && s.alt !== undefined && !isNaN(s.alt)) {
       gpx += '        <ele>' + s.alt.toFixed(2) + '</ele>\n';
     }
     gpx += '        <time>' + iso + '</time>\n';
-    gpx += '        <speed>' + spd + '</speed>\n';
-    if (s.accuracy !== null && s.accuracy !== undefined) {
-      gpx += '        <hdop>' + (s.accuracy / 5).toFixed(1) + '</hdop>\n';
-    }
     gpx += '      </trkpt>\n';
   });
   gpx += '    </trkseg>\n  </trk>\n</gpx>';
@@ -2502,8 +2551,11 @@ function exportReport() {
 function captureHere(which) {
   if (!state.race) { alert('Select a race first.'); return; }
   if (!state.lastPos) { alert('No GPS fix yet. Wait a moment.'); return; }
-  if (state.lastPos.accuracy > 30) {
-    if (!confirm('GPS accuracy is \u00b1' + state.lastPos.accuracy.toFixed(0) + 'm. Capture anyway?\n\nBetter to wait for under \u00b110m (green dot).')) return;
+  // Hard reject: saving a coord with > 20 m accuracy would poison the geofence
+  // for every future run of this race. Better to fail loud than ship bad data.
+  if (state.lastPos.accuracy === null || state.lastPos.accuracy > 20) {
+    alert('GPS accuracy is \u00b1' + (state.lastPos.accuracy === null ? '?' : state.lastPos.accuracy.toFixed(0)) + 'm.\n\nCapture requires \u00b120m or better. Walk to clear sky and try again.');
+    return;
   }
   setCustomCoord(state.race, which, { lat: state.lastPos.lat, lng: state.lastPos.lng });
   renderSetup();
@@ -2523,6 +2575,8 @@ function openModal(which) {
 function closeModal() { document.getElementById('coordModal').classList.remove('open'); modalTarget = null; }
 
 function resetAll() {
+  // Cancel any in-flight Stacey speech so a finish call doesn't trail into the next run.
+  try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
   state.race = null; state.classSpeed = null; state.armedStartUtcMs = null;
   state.raceActive = false; state.startedAtMs = null;
   state.samples = []; state.motionSamples = [];
@@ -2590,25 +2644,38 @@ document.getElementById('cnMuteBtn').onclick = () => {
   if (!state.hazardMuted) speak(pick(['I\'m back. Miss me?', 'Audio on. You need me and you know it.', 'Unmuted. Let\'s talk.']), true);
 };
 
-/* =============== INIT =============== */
-loadCustomCoords();
-renderSetup();
-startGps();
-initNetworkMonitor();
-// Restore device label
-if (state.deviceLabel) {
-  document.getElementById('deviceLabel').value = state.deviceLabel;
-  document.getElementById('labelTim').classList.toggle('enabled', state.deviceLabel === 'Tim - Windshield');
-  document.getElementById('labelJosh').classList.toggle('enabled', state.deviceLabel === 'Josh - Navigator');
+/* =============== INIT ===============
+   Deferred: we don't want GPS / motion / speech permission prompts firing
+   underneath the PIN gate. Bootstrap only runs once the PIN is validated
+   (or if this session was already unlocked). */
+let __rcBooted = false;
+function bootApp() {
+  if (__rcBooted) return;
+  __rcBooted = true;
+  loadCustomCoords();
+  renderSetup();
+  startGps();
+  initNetworkMonitor();
+  // Restore device label
+  if (state.deviceLabel) {
+    document.getElementById('deviceLabel').value = state.deviceLabel;
+    document.getElementById('labelTim').classList.toggle('enabled', state.deviceLabel === 'Tim - Windshield');
+    document.getElementById('labelJosh').classList.toggle('enabled', state.deviceLabel === 'Josh - Navigator');
+  }
+  // Load voices — some browsers fire onvoiceschanged, others have them ready immediately
+  if (window.speechSynthesis) {
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state.raceActive) requestWakeLock();
+  });
 }
-// Load voices — some browsers fire onvoiceschanged, others have them ready immediately
-if (window.speechSynthesis) {
-  loadVoices();
-  window.speechSynthesis.onvoiceschanged = loadVoices;
-}
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && state.raceActive) requestWakeLock();
-});
+// Boot decision: unlocked sessions boot now, otherwise wait for the gate to release us.
+try {
+  if (sessionStorage.getItem('rcPinOk') === '1') bootApp();
+  else window.addEventListener('rcPinSuccess', bootApp, { once: true });
+} catch(e) { bootApp(); }
 
 /* =============== SERVICE WORKER (offline support) =============== */
 // Only registers on HTTPS origins (Vercel, GitHub Pages, etc.) — silently skips on file:// or http://.
