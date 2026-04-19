@@ -479,9 +479,169 @@
   .net-badge.ok  { color: #00ff66; border-color: #1a3a22; }
   .net-badge.mid { color: #ffaa00; border-color: #3a2a0a; }
   .net-badge.off { color: #ff3a3a; border-color: #3a0a0a; }
+
+  /* ==================== PIN GATE ==================== */
+  #pinGate {
+    position: fixed; inset: 0; z-index: 99999;
+    background: radial-gradient(ellipse at center, #1a0407 0%, #000 70%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: env(safe-area-inset-top) 24px env(safe-area-inset-bottom);
+    font-family: var(--display);
+    color: var(--text);
+  }
+  #pinGate.hidden { display: none; }
+  #pinGate .pin-brand {
+    font-family: var(--block); font-weight: 700;
+    font-size: 28px; letter-spacing: 2px;
+    color: var(--race-red); text-transform: uppercase;
+    text-shadow: 0 0 12px rgba(227,25,55,0.4);
+    margin-bottom: 6px;
+  }
+  #pinGate .pin-sub {
+    font-size: 13px; letter-spacing: 3px; color: var(--muted);
+    text-transform: uppercase; margin-bottom: 28px;
+  }
+  #pinGate .pin-dots {
+    display: flex; gap: 16px; margin-bottom: 28px;
+  }
+  #pinGate .pin-dot {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid var(--edge-2); background: transparent;
+    transition: all 0.12s ease;
+  }
+  #pinGate .pin-dot.filled {
+    background: var(--race-red); border-color: var(--race-red);
+    box-shadow: 0 0 10px rgba(227,25,55,0.6);
+  }
+  #pinGate.error .pin-dot {
+    border-color: #ff1a1a;
+    animation: pinShake 0.35s ease;
+  }
+  @keyframes pinShake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(6px); }
+  }
+  #pinGate .pin-msg {
+    font-size: 12px; letter-spacing: 2px; color: #ff3a3a;
+    text-transform: uppercase; height: 16px; margin-bottom: 14px;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  #pinGate.error .pin-msg { opacity: 1; }
+  #pinGate .pin-keys {
+    display: grid; grid-template-columns: repeat(3, 82px);
+    gap: 12px;
+  }
+  #pinGate .pin-key {
+    height: 82px; border-radius: 14px;
+    background: linear-gradient(180deg, #141414 0%, #080808 100%);
+    border: 1px solid var(--edge-2);
+    color: var(--text); font-family: var(--display); font-weight: 600;
+    font-size: 32px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; user-select: none;
+    transition: transform 0.08s, background 0.12s;
+  }
+  #pinGate .pin-key:active { transform: scale(0.94); background: #1e1e1e; }
+  #pinGate .pin-key.blank { visibility: hidden; pointer-events: none; }
+  #pinGate .pin-key.action { font-size: 14px; letter-spacing: 1px; color: var(--muted); }
 </style>
 </head>
 <body>
+
+<!-- ==================== PIN GATE (blocks app until PIN entered) ==================== -->
+<div id="pinGate">
+  <div class="pin-brand">915 Race Control</div>
+  <div class="pin-sub">Enter PIN</div>
+  <div class="pin-dots">
+    <div class="pin-dot" data-i="0"></div>
+    <div class="pin-dot" data-i="1"></div>
+    <div class="pin-dot" data-i="2"></div>
+    <div class="pin-dot" data-i="3"></div>
+  </div>
+  <div class="pin-msg">Incorrect PIN</div>
+  <div class="pin-keys">
+    <div class="pin-key" data-k="1">1</div>
+    <div class="pin-key" data-k="2">2</div>
+    <div class="pin-key" data-k="3">3</div>
+    <div class="pin-key" data-k="4">4</div>
+    <div class="pin-key" data-k="5">5</div>
+    <div class="pin-key" data-k="6">6</div>
+    <div class="pin-key" data-k="7">7</div>
+    <div class="pin-key" data-k="8">8</div>
+    <div class="pin-key" data-k="9">9</div>
+    <div class="pin-key blank"></div>
+    <div class="pin-key" data-k="0">0</div>
+    <div class="pin-key action" data-k="del">DEL</div>
+  </div>
+</div>
+<script>
+(function(){
+  var PIN = '2018';
+  var gate = document.getElementById('pinGate');
+  // If already unlocked this session, hide immediately.
+  try {
+    if (sessionStorage.getItem('rcPinOk') === '1') {
+      gate.classList.add('hidden');
+      return;
+    }
+  } catch(e) {}
+
+  var buf = '';
+  var dots = gate.querySelectorAll('.pin-dot');
+
+  function render(){
+    for (var i=0; i<4; i++){
+      if (i < buf.length) dots[i].classList.add('filled');
+      else dots[i].classList.remove('filled');
+    }
+  }
+  function fail(){
+    gate.classList.add('error');
+    setTimeout(function(){
+      gate.classList.remove('error');
+      buf = '';
+      render();
+    }, 600);
+  }
+  function success(){
+    try { sessionStorage.setItem('rcPinOk', '1'); } catch(e){}
+    gate.classList.add('hidden');
+  }
+  function press(k){
+    if (k === 'del') {
+      buf = buf.slice(0, -1);
+      render();
+      return;
+    }
+    if (buf.length >= 4) return;
+    buf += k;
+    render();
+    if (buf.length === 4) {
+      if (buf === PIN) {
+        setTimeout(success, 120);
+      } else {
+        setTimeout(fail, 120);
+      }
+    }
+  }
+
+  gate.querySelectorAll('.pin-key').forEach(function(btn){
+    var k = btn.getAttribute('data-k');
+    if (!k) return;
+    btn.addEventListener('click', function(){ press(k); });
+  });
+
+  // Physical keyboard support (desktop testing).
+  document.addEventListener('keydown', function(e){
+    if (gate.classList.contains('hidden')) return;
+    if (e.key >= '0' && e.key <= '9') press(e.key);
+    else if (e.key === 'Backspace') press('del');
+  });
+})();
+</script>
 
 <!-- ==================== SETUP SCREEN ==================== -->
 <div id="setup" class="screen active">
@@ -584,7 +744,7 @@
     <div class="section-label">Configuration</div>
     <div class="info-line"><span class="k">Course Distance</span><span class="v" id="cfgDist">&mdash;</span></div>
     <div class="info-line"><span class="k">Straight-Line Distance</span><span class="v" id="cfgStraight">&mdash;</span></div>
-    <div class="info-line"><span class="k">Perfect Time</span><span class="v" id="cfgTime">&mdash;</span></div>
+    <div class="info-line" style="background:#1a0a0a;border:1px solid #3a1a1a;padding:8px 10px;border-radius:6px;margin:4px 0;"><span class="k" style="color:#e31937;font-weight:700;letter-spacing:0.12em;">PERFECT TIME</span><span class="v" id="cfgTime" style="color:#e31937;font-size:16px;font-weight:700;">&mdash;</span></div>
     <div class="info-line"><span class="k">Tech Speed (DQ Over)</span><span class="v" id="cfgTech">&mdash;</span></div>
     <div class="info-line"><span class="k">Min Speed (DQ Under)</span><span class="v" id="cfgMin">&mdash;</span></div>
     <div class="info-line"><span class="k">Splits</span><span class="v" id="cfgSplits">&mdash;</span></div>
@@ -675,6 +835,8 @@
       <div class="speed-cell"><div class="cell-label">Avg So Far</div><div class="cell-value" id="avgSpd">&mdash;</div></div>
     </div>
     <div class="meta-grid">
+      <div class="meta-cell"><div class="cell-label">Perfect Time</div><div class="meta-value" id="racePerfectTime">&mdash;</div></div>
+      <div class="meta-cell"><div class="cell-label">Class</div><div class="meta-value" id="raceClassLabel">&mdash;</div></div>
       <div class="meta-cell"><div class="cell-label">Dist Left</div><div class="meta-value" id="distLeft">&mdash;</div></div>
       <div class="meta-cell"><div class="cell-label">Dist Done</div><div class="meta-value" id="distDone">&mdash;</div></div>
       <div class="meta-cell"><div class="cell-label">Time Left</div><div class="meta-value" id="timeLeft">&mdash;</div></div>
@@ -1609,6 +1771,12 @@ function launchRace() {
     const r = RACES[state.race];
     const raceInfoEl = document.getElementById('raceInfo');
     if (raceInfoEl) raceInfoEl.textContent = r.name.split('(')[0].trim() + ' | ' + state.classSpeed + ' CLASS';
+    // Lock in Perfect Time + Class on the race screen (derived from selected class speed).
+    const perfectSecLock = (r.distance_mi / state.classSpeed) * 3600;
+    const rpt = document.getElementById('racePerfectTime');
+    if (rpt) rpt.textContent = fmtTime(perfectSecLock);
+    const rcl = document.getElementById('raceClassLabel');
+    if (rcl) rcl.textContent = state.classSpeed + ' mph';
     show('race');
     speak(pick(['Clock is hot. Let\'s go racing!', 'We are live! Show me what this Durango can do.', 'Clock running. Time to earn that trophy.']), true);
     state.raceTicker = setInterval(tickRace, 100);
