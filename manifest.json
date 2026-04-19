@@ -1,0 +1,20 @@
+{
+  "name": "915 Race Control",
+  "short_name": "915 RC",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "description": "Open Road Race timing and telemetry for 915 Industries.",
+  "categories": ["sports", "utilities"],
+  "icons": [
+    {
+      "src": "./playstore-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
