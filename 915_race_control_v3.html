@@ -1,0 +1,1496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="915 Race Control">
+<meta name="theme-color" content="#000000">
+<title>915 Race Control — Zeitler/Wolfe Racing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,700;0,900;1,700;1,900&family=Oswald:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000; --panel: #0a0a0a; --panel-2: #111;
+    --edge: #222; --edge-2: #333; --text: #fff; --muted: #7a7a7a;
+    --green: #00ff66; --amber: #ffaa00; --red: #ff1a1a; --blue: #00c8ff;
+    --race-red: #e31937; --race-red-dim: #4a0a12;
+    --display: 'Barlow Condensed', 'Impact', sans-serif;
+    --block: 'Oswald', 'Impact', sans-serif;
+    --mono: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-user-select: none; user-select: none;
+    touch-action: manipulation;
+  }
+  .screen {
+    position: fixed; inset: 0;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    display: none; flex-direction: column; overflow: hidden;
+  }
+  .screen.active { display: flex; }
+
+  /* === BRANDED HEADER === */
+  .brand-hdr {
+    background: linear-gradient(180deg, #0d0d0d 0%, #000 100%);
+    border-bottom: 3px solid var(--race-red);
+    padding: 8px 12px;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-shrink: 0; position: relative; overflow: hidden;
+  }
+  .brand-hdr::before {
+    content: ''; position: absolute; top: 0; right: 0;
+    width: 100px; height: 100%; opacity: 0.04;
+    background: repeating-conic-gradient(#fff 0% 25%, transparent 0% 50%) 0 0/14px 14px;
+  }
+  .brand-left { display: flex; align-items: center; gap: 8px; z-index: 1; }
+  .r-logo { flex-shrink: 0; }
+  .r-logo svg { display: block; }
+  .brand-text { display: flex; flex-direction: column; line-height: 1; gap: 1px; }
+  .brand-text-row { display: flex; align-items: baseline; gap: 0; }
+  .brand-915 {
+    font-family: var(--block); font-weight: 700;
+    font-size: 20px; letter-spacing: 0.04em; color: #fff;
+  }
+  .brand-industries {
+    font-family: var(--block); font-weight: 700;
+    font-size: 9px; letter-spacing: 0.18em; color: #fff; text-transform: uppercase;
+  }
+  .brand-rc-row { display: flex; align-items: center; gap: 4px; }
+  .brand-race {
+    font-family: var(--display); font-weight: 900; font-style: italic;
+    font-size: 11px; letter-spacing: 0.08em; color: #fff; text-transform: uppercase;
+  }
+  .brand-control {
+    font-family: var(--display); font-weight: 700; font-style: italic;
+    font-size: 11px; letter-spacing: 0.08em; color: var(--race-red); text-transform: uppercase;
+  }
+  .brand-sub-label {
+    font-family: var(--display); font-weight: 700; font-style: italic;
+    font-size: 10px; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase;
+  }
+  .brand-right { display: flex; gap: 10px; align-items: center; z-index: 1; }
+  .gps-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--red); transition: background 0.2s;
+  }
+  .gps-dot.ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .gps-dot.mid { background: var(--amber); }
+  .gps-stat { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+
+  /* === EXPERIMENTAL RIBBON === */
+  .exp-ribbon {
+    background: repeating-linear-gradient(135deg, var(--race-red-dim) 0px, var(--race-red-dim) 8px, #0a0a0a 8px, #0a0a0a 16px);
+    border-bottom: 1px solid var(--edge);
+    padding: 4px 16px;
+    text-align: center;
+    font-family: var(--mono); font-size: 8px; font-weight: 700;
+    letter-spacing: 0.25em; text-transform: uppercase;
+    color: var(--race-red); flex-shrink: 0;
+  }
+
+  /* === SETUP SCREEN === */
+  #setup .body { padding: 20px; overflow-y: auto; flex: 1; }
+  .hero-card {
+    background: #0a0a0a;
+    border: 2px solid var(--edge-2);
+    border-left: 4px solid var(--race-red);
+    border-radius: 8px; padding: 16px 16px 14px; margin-bottom: 24px;
+    position: relative; overflow: hidden;
+  }
+  .hero-card::before {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%; opacity: 0.03;
+    background: repeating-conic-gradient(#fff 0% 25%, transparent 0% 50%) 0 0/18px 18px;
+    pointer-events: none;
+  }
+  .hero-card::after {
+    content: ''; position: absolute; top: -10px; right: -10px;
+    width: 80px; height: 80px; opacity: 0.1;
+    background: repeating-conic-gradient(#fff 0% 25%, #000 0% 50%) 0 0/10px 10px;
+    transform: rotate(15deg);
+  }
+  .hero-top { display: flex; align-items: center; gap: 12px; position: relative; z-index: 1; }
+  .hero-flag-l, .hero-flag-r {
+    flex-shrink: 0; opacity: 0.7;
+  }
+  .hero-center { flex: 1; text-align: center; }
+  .hero-team {
+    font-family: var(--display); font-weight: 900; font-style: italic;
+    font-size: 24px; letter-spacing: 0.06em; line-height: 1.05;
+    text-transform: uppercase;
+  }
+  .hero-team-racing {
+    font-family: var(--display); font-weight: 700; font-style: italic;
+    font-size: 14px; letter-spacing: 0.25em; color: var(--race-red);
+    text-transform: uppercase; margin-top: 2px;
+  }
+  .hero-divider {
+    width: 100%; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--race-red), transparent);
+    margin: 10px 0 8px; position: relative; z-index: 1;
+  }
+  .hero-meta {
+    display: flex; justify-content: space-between; align-items: center;
+    position: relative; z-index: 1;
+  }
+  .hero-roles {
+    display: flex; gap: 16px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .hero-role { color: var(--muted); }
+  .hero-role span { color: var(--text); font-weight: 700; }
+  .hero-vehicle {
+    font-family: var(--mono); font-size: 9px; color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+  .hero-tagline {
+    font-family: var(--display); font-weight: 700; font-style: italic;
+    font-size: 10px; letter-spacing: 0.12em; color: var(--race-red);
+    text-transform: uppercase; text-align: center;
+    margin-top: 8px; opacity: 0.8; position: relative; z-index: 1;
+  }
+
+  .section-label {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--race-red); margin: 20px 0 8px;
+    font-weight: 700;
+  }
+  .race-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .race-btn {
+    background: var(--panel); border: 1px solid var(--edge);
+    padding: 16px; border-radius: 10px; cursor: pointer;
+    text-align: left; color: var(--text); transition: all 0.15s;
+  }
+  .race-btn:active { transform: scale(0.98); }
+  .race-btn.selected { border-color: var(--race-red); background: var(--race-red-dim); }
+  .race-btn .name { font-family: var(--display); font-weight: 700; font-style: italic; font-size: 16px; }
+  .race-btn .details { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .class-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .class-btn {
+    background: var(--panel); border: 1px solid var(--edge);
+    padding: 12px 16px; border-radius: 8px; cursor: pointer;
+    color: var(--text); font-family: var(--mono); font-weight: 700;
+    min-width: 72px; text-align: center; transition: all 0.15s;
+  }
+  .class-btn:active { transform: scale(0.95); }
+  .class-btn.selected { border-color: var(--race-red); background: var(--race-red-dim); color: #fff; }
+  .cta {
+    width: 100%; padding: 18px; margin-top: 24px;
+    background: var(--race-red); color: #fff;
+    border: none; border-radius: 10px;
+    font-family: var(--display); font-size: 18px; font-weight: 900;
+    font-style: italic; letter-spacing: 0.08em;
+    text-transform: uppercase; cursor: pointer;
+  }
+  .cta:disabled { background: #222; color: #555; }
+  .cta.secondary { background: var(--panel); color: var(--text); border: 1px solid var(--edge); font-style: normal; }
+  .cta.export-btn { font-size: 14px; padding: 14px; font-style: normal; font-family: var(--mono); font-weight: 700; }
+  .info-line {
+    display: flex; justify-content: space-between;
+    font-family: var(--mono); font-size: 11px;
+    padding: 8px 0; border-bottom: 1px solid var(--edge);
+  }
+  .info-line .k { color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .info-line .v { color: var(--text); font-weight: 700; }
+  .coord-card {
+    background: var(--panel); border: 1px solid var(--edge);
+    border-radius: 10px; padding: 14px; margin-bottom: 10px;
+  }
+  .coord-card.captured { border-color: var(--green); background: #0a1a12; }
+  .coord-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .coord-title { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; }
+  .coord-status {
+    font-family: var(--mono); font-size: 9px; font-weight: 700;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 4px;
+    background: var(--edge); color: var(--muted);
+  }
+  .coord-status.saved { background: var(--green); color: #000; }
+  .coord-display {
+    font-family: var(--mono); font-size: 12px; font-weight: 700;
+    padding: 8px 10px; background: #000; border-radius: 6px;
+    margin-bottom: 10px; word-break: break-all;
+  }
+  .coord-btns { display: flex; gap: 6px; }
+  .coord-btn {
+    flex: 1; padding: 10px; border-radius: 6px;
+    border: 1px solid var(--edge); background: var(--panel-2);
+    color: var(--text); font-family: var(--mono); font-size: 11px;
+    font-weight: 700; letter-spacing: 0.05em; cursor: pointer;
+  }
+  .coord-btn.primary { border-color: var(--blue); color: var(--blue); }
+  .coord-btn.reset { width: 100%; margin-top: 4px; color: var(--muted); border-style: dashed; }
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+    display: none; align-items: center; justify-content: center;
+    z-index: 100; padding: 20px;
+  }
+  .modal-bg.open { display: flex; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--edge);
+    border-radius: 12px; padding: 20px; width: 100%; max-width: 400px;
+  }
+  .modal h3 {
+    font-family: var(--mono); font-size: 12px; font-weight: 700;
+    letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 14px;
+  }
+  .modal label {
+    display: block; font-family: var(--mono); font-size: 10px;
+    color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase;
+    margin-bottom: 4px; margin-top: 10px;
+  }
+  .modal input {
+    width: 100%; padding: 12px; border-radius: 6px;
+    background: #000; border: 1px solid var(--edge); color: var(--text);
+    font-family: var(--mono); font-size: 14px; font-weight: 700;
+  }
+  .modal input:focus { border-color: var(--blue); outline: none; }
+  .modal-btns { display: flex; gap: 8px; margin-top: 16px; }
+  .modal-btns button {
+    flex: 1; padding: 12px; border-radius: 6px; border: 1px solid var(--edge);
+    background: var(--panel-2); color: var(--text);
+    font-family: var(--mono); font-size: 12px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
+  }
+  .modal-btns button.save { background: var(--green); color: #000; border-color: var(--green); }
+  .modal .paste-hint { font-size: 11px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+  .tip-box {
+    margin-top: 10px; padding: 10px 12px;
+    background: #0a0f14; border-left: 2px solid var(--blue);
+    border-radius: 4px; font-family: var(--mono); font-size: 11px; color: #a8c5d4; line-height: 1.5;
+  }
+  .tip-box strong { color: var(--blue); }
+  .sensor-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .sensor-btn {
+    flex: 1; padding: 12px; border-radius: 8px;
+    background: var(--panel); border: 1px solid var(--edge);
+    color: var(--text); font-family: var(--mono); font-size: 11px;
+    font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
+  }
+  .sensor-btn.enabled { border-color: var(--green); color: var(--green); background: #0a1a12; }
+
+  /* === PRESTAGE === */
+  #prestage .body { flex: 1; padding: 20px; display: flex; flex-direction: column; justify-content: center; overflow-y: auto; }
+  .prestage-time { font-family: var(--mono); font-size: 52px; font-weight: 700; text-align: center; letter-spacing: -0.02em; margin: 12px 0; }
+  .prestage-label { text-align: center; color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; }
+  .start-picker { display: flex; gap: 10px; justify-content: center; margin: 20px 0; flex-wrap: wrap; }
+  .start-btn {
+    background: var(--panel); border: 1px solid var(--edge);
+    padding: 12px 16px; border-radius: 8px; cursor: pointer;
+    color: var(--text); font-family: var(--mono); font-weight: 700;
+  }
+  .start-btn.armed { border-color: var(--race-red); background: var(--race-red-dim); color: var(--race-red); }
+  .countdown { font-family: var(--mono); font-size: 80px; font-weight: 700; text-align: center; letter-spacing: -0.04em; color: var(--amber); }
+  .countdown.go { color: var(--green); font-size: 64px; }
+
+  /* === RACE SCREEN === */
+  #race { background: #000; }
+  #race .telemetry { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+  .split-bar {
+    display: flex; background: #050505; border-bottom: 1px solid var(--edge);
+    padding: 6px 8px; gap: 4px; overflow-x: auto; scrollbar-width: none; flex-shrink: 0;
+  }
+  .split-bar::-webkit-scrollbar { display: none; }
+  .split-chip {
+    flex-shrink: 0; padding: 4px 8px; border-radius: 4px;
+    background: var(--panel); border: 1px solid var(--edge);
+    font-family: var(--mono); font-size: 10px; font-weight: 700;
+    min-width: 60px; text-align: center;
+  }
+  .split-chip.passed.fast { border-color: var(--amber); color: var(--amber); }
+  .split-chip.passed.slow { border-color: var(--blue); color: var(--blue); }
+  .split-chip.passed.perfect { border-color: var(--green); color: var(--green); }
+  .split-chip.current { border-color: var(--text); background: var(--panel-2); }
+  .split-chip .mi { font-size: 11px; }
+  .split-chip .dt { font-size: 9px; opacity: 0.8; margin-top: 1px; }
+  .sprint-banner {
+    background: linear-gradient(90deg, #1a0a00, #000);
+    border-bottom: 2px solid var(--amber);
+    padding: 8px 12px; text-align: center; flex-shrink: 0;
+  }
+  .sprint-label { font-family: var(--mono); font-size: 10px; font-weight: 700; color: var(--amber); letter-spacing: 0.2em; }
+  .sprint-msg { font-family: var(--mono); font-size: 14px; font-weight: 700; margin-top: 2px; }
+  .delta-block {
+    padding: 16px 12px 8px; background: var(--panel);
+    border-bottom: 1px solid var(--edge); text-align: center;
+    transition: background 0.3s;
+  }
+  .delta-block.ahead { background: linear-gradient(180deg, #1a0a00 0%, #0a0500 100%); }
+  .delta-block.behind { background: linear-gradient(180deg, #001020 0%, #000810 100%); }
+  .delta-block.perfect { background: linear-gradient(180deg, #001a14 0%, #000a0a 100%); }
+  .delta-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+  .delta-value {
+    font-family: var(--display); font-weight: 900; font-style: italic;
+    font-size: 80px; letter-spacing: -0.02em; line-height: 1; margin-top: 4px;
+  }
+  .delta-value.ahead { color: var(--amber); }
+  .delta-value.behind { color: var(--blue); }
+  .delta-value.perfect { color: var(--green); }
+  .delta-hint {
+    font-family: var(--display); font-weight: 700; font-style: italic;
+    font-size: 14px; letter-spacing: 0.15em; text-transform: uppercase; margin-top: 4px;
+  }
+  .delta-hint.ahead { color: var(--amber); }
+  .delta-hint.behind { color: var(--blue); }
+  .delta-hint.perfect { color: var(--green); }
+  .target-block { padding: 14px 12px; background: #0a0a0a; border-bottom: 1px solid var(--edge); text-align: center; }
+  .target-label { font-family: var(--mono); font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+  .target-value { font-family: var(--display); font-weight: 900; font-style: italic; font-size: 52px; line-height: 1; margin-top: 2px; }
+  .target-unit { font-size: 18px; color: var(--muted); margin-left: 6px; font-style: normal; }
+  .speed-row { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--edge); }
+  .speed-cell { padding: 10px 12px; text-align: center; border-right: 1px solid var(--edge); }
+  .speed-cell:last-child { border-right: none; }
+  .cell-label { font-family: var(--mono); font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+  .cell-value { font-family: var(--mono); font-size: 32px; font-weight: 700; line-height: 1.1; }
+  .cell-value.warn { color: var(--amber); }
+  .cell-value.danger { color: var(--red); animation: pulse 0.6s infinite; }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+  .meta-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; background: #050505; }
+  .meta-cell { padding: 10px 8px; text-align: center; border-right: 1px solid var(--edge); }
+  .meta-cell:last-child { border-right: none; }
+  .meta-value { font-family: var(--mono); font-size: 16px; font-weight: 700; }
+
+  /* === G-PAD VISUALIZATION === */
+  .g-pad-container {
+    display: none; background: #050505; border-top: 1px solid var(--edge);
+    padding: 10px; align-items: center; gap: 12px;
+  }
+  .g-pad-container.active { display: flex; }
+  .g-pad-svg {
+    width: 100px; height: 100px; flex-shrink: 0;
+  }
+  .g-pad-data {
+    flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  }
+  .g-data-cell { text-align: center; }
+  .g-data-label { font-family: var(--mono); font-size: 8px; color: var(--muted); letter-spacing: 0.15em; text-transform: uppercase; }
+  .g-data-value { font-family: var(--mono); font-size: 16px; font-weight: 700; }
+  .g-data-value.warn { color: var(--amber); }
+  .g-data-value.crit { color: var(--red); }
+
+  .race-controls {
+    display: flex; gap: 8px; padding: 8px;
+    background: var(--panel); border-top: 1px solid var(--edge); flex-shrink: 0;
+  }
+  .race-controls button {
+    flex: 1; padding: 12px; border-radius: 6px; border: 1px solid var(--edge);
+    background: var(--panel-2); color: var(--text);
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
+  }
+  .race-controls button.stop { border-color: var(--red); color: var(--red); }
+  .warning-banner {
+    background: var(--red); color: #000;
+    padding: 8px; text-align: center;
+    font-family: var(--display); font-size: 14px; font-weight: 900; font-style: italic;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    animation: pulse 0.5s infinite; flex-shrink: 0;
+  }
+
+  /* === DONE SCREEN === */
+  #done .body { padding: 24px; overflow-y: auto; flex: 1; }
+  .result-hero {
+    background: #0a0a0a;
+    border: 2px solid var(--edge-2); border-left: 4px solid var(--race-red);
+    padding: 24px; border-radius: 8px;
+    text-align: center; margin-bottom: 20px; position: relative; overflow: hidden;
+  }
+  .result-hero::after {
+    content: ''; position: absolute; bottom: -5px; right: -5px;
+    width: 70px; height: 70px; opacity: 0.08;
+    background: repeating-conic-gradient(#fff 0% 25%, transparent 0% 50%) 0 0/10px 10px;
+    transform: rotate(10deg);
+  }
+  .result-hero .label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+  .result-hero .value { font-family: var(--display); font-weight: 900; font-style: italic; font-size: 56px; margin: 8px 0; }
+  .result-hero .verdict { font-family: var(--display); font-weight: 700; font-style: italic; font-size: 16px; letter-spacing: 0.1em; color: var(--race-red); }
+  .export-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 20px; }
+  .export-grid .cta { margin-top: 0; font-size: 12px; padding: 14px 8px; font-style: normal; font-family: var(--mono); font-weight: 700; }
+  .export-grid .cta .exp-icon { font-size: 18px; display: block; margin-bottom: 4px; }
+  .export-full { grid-column: 1 / -1; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ==================== SETUP SCREEN ==================== -->
+<div id="setup" class="screen active">
+  <div class="brand-hdr">
+    <div class="brand-left">
+      <div class="r-logo">
+        <svg width="32" height="28" viewBox="0 0 40 35" fill="none">
+          <path d="M8 2C8 2 14 2 20 2C26 2 32 5 32 12C32 17 29 20 25 21L35 33H28L19 21H15V33H8V2Z" fill="#e31937"/>
+          <path d="M15 8V16H19C22 16 25 14.5 25 12C25 9.5 22 8 19 8H15Z" fill="#000"/>
+          <circle cx="35" cy="31" r="3" fill="#e31937"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="brand-text-row">
+          <span class="brand-915">915</span>
+          <span class="brand-industries" style="margin-left:6px;">INDUSTRIES</span>
+        </div>
+        <div class="brand-rc-row">
+          <span class="brand-race">RACE</span><span class="brand-control">CONTROL</span>
+        </div>
+      </div>
+    </div>
+    <div class="brand-right">
+      <span id="gpsDotSetup" class="gps-dot"></span>
+      <span class="gps-stat" id="gpsStatSetup">NO FIX</span>
+    </div>
+  </div>
+  <div class="exp-ribbon">Experimental &middot; Not For Public Release &middot; v3.0</div>
+  <div class="body">
+    <div class="hero-card">
+      <div class="hero-top">
+        <div class="hero-flag-l">
+          <svg width="28" height="22" viewBox="0 0 32 26"><path d="M2 2L6 2L6 24L2 24Z" fill="#888"/><rect x="6" y="2" width="5" height="5" fill="#fff"/><rect x="11" y="2" width="5" height="5" fill="#000" stroke="#333" stroke-width="0.5"/><rect x="16" y="2" width="5" height="5" fill="#fff"/><rect x="21" y="2" width="5" height="5" fill="#000" stroke="#333" stroke-width="0.5"/><rect x="6" y="7" width="5" height="5" fill="#000" stroke="#333" stroke-width="0.5"/><rect x="11" y="7" width="5" height="5" fill="#fff"/><rect x="16" y="7" width="5" height="5" fill="#000" stroke="#333" stroke-width="0.5"/><rect x="21" y="7" width="5" height="5" fill="#fff"/><rect x="6" y="12" width="5" height="5" fill="#fff"/><rect x="11" y="12" width="5" height="5" fill="#000" stroke="#333" stroke-width="0.5"/><rect x="16" y="12" width="5" height="5" fill="#fff"/><rect x="6" y="17" width="5" height="5" fill="#000" stroke="#333" stroke-width="0.5"/><rect x="11" y="17" width="5" height="5" fill="#fff"/></svg>
+        </div>
+        <div class="hero-center">
+          <div class="hero-team">ZEITLER WOLFE</div>
+          <div class="hero-team-racing">RACING</div>
+        </div>
+        <div class="hero-flag-r">
+          <svg width="28" height="22" viewBox="0 0 32 26" style="transform:scaleX(-1)"><path d="M2 2L6 2L6 24L2 24Z" fill="#888"/><rect x="6" y="2" width="5" height="5" fill="#fff"/><rect x="11" y="2" width="5" height="5" fill="#000" stroke="#333" stroke-width="0.5"/><rect x="16" y="2" width="5" height="5" fill="#fff"/><rect x="21" y="2" width="5" height="5" fill="#000" stroke="#333" stroke-width="0.5"/><rect x="6" y="7" width="5" height="5" fill="#000" stroke="#333" stroke-width="0.5"/><rect x="11" y="7" width="5" height="5" fill="#fff"/><rect x="16" y="7" width="5" height="5" fill="#000" stroke="#333" stroke-width="0.5"/><rect x="21" y="7" width="5" height="5" fill="#fff"/><rect x="6" y="12" width="5" height="5" fill="#fff"/><rect x="11" y="12" width="5" height="5" fill="#000" stroke="#333" stroke-width="0.5"/><rect x="16" y="12" width="5" height="5" fill="#fff"/><rect x="6" y="17" width="5" height="5" fill="#000" stroke="#333" stroke-width="0.5"/><rect x="11" y="17" width="5" height="5" fill="#fff"/></svg>
+        </div>
+      </div>
+      <div class="hero-divider"></div>
+      <div class="hero-meta">
+        <div class="hero-roles">
+          <div class="hero-role">Driver: <span>Tim Zeitler</span></div>
+          <div class="hero-role">Nav: <span>Josh Wolfe</span></div>
+        </div>
+        <div class="hero-vehicle">2018 SRT Durango</div>
+      </div>
+      <div class="hero-tagline">FAST CARS. REAL DATA. ZERO EXCUSES.</div>
+    </div>
+
+    <div class="section-label">Race</div>
+    <div class="race-grid" id="raceGrid"></div>
+
+    <div class="section-label">Target Speed Class (mph)</div>
+    <div class="class-row" id="classRow"></div>
+
+    <div class="section-label">Start / Finish Coordinates</div>
+    <div class="coord-card" id="startCard">
+      <div class="coord-head">
+        <span class="coord-title">Start Line</span>
+        <span class="coord-status" id="startStatus">DEFAULT</span>
+      </div>
+      <div class="coord-display" id="startCoord">&mdash;</div>
+      <div class="coord-btns">
+        <button class="coord-btn primary" id="captureStart">Capture Here</button>
+        <button class="coord-btn" id="editStart">Enter Manually</button>
+      </div>
+    </div>
+    <div class="coord-card" id="finishCard">
+      <div class="coord-head">
+        <span class="coord-title">Finish Line</span>
+        <span class="coord-status" id="finishStatus">DEFAULT</span>
+      </div>
+      <div class="coord-display" id="finishCoord">&mdash;</div>
+      <div class="coord-btns">
+        <button class="coord-btn primary" id="captureFinish">Capture Here</button>
+        <button class="coord-btn" id="editFinish">Enter Manually</button>
+      </div>
+    </div>
+    <button class="coord-btn reset" id="resetCoords">Reset to Default Coordinates</button>
+
+    <div class="section-label">Sensors</div>
+    <div class="sensor-row">
+      <button class="sensor-btn" id="reqMotion">Enable Motion Sensors</button>
+      <button class="sensor-btn" id="reqAudio">Enable Audio Callouts</button>
+    </div>
+    <div class="info-line"><span class="k">GPS</span><span class="v" id="sensGps">&mdash;</span></div>
+    <div class="info-line"><span class="k">Accelerometer / Gyro</span><span class="v" id="sensMotion">NOT REQUESTED</span></div>
+    <div class="info-line"><span class="k">Compass</span><span class="v" id="sensCompass">NOT REQUESTED</span></div>
+    <div class="info-line"><span class="k">Speech Synthesis</span><span class="v" id="sensSpeech">NOT REQUESTED</span></div>
+
+    <div class="tip-box">
+      <strong>Tip:</strong> For a full record of the app UI with audio, start iOS Control Center Screen Recording before launching.
+    </div>
+
+    <div class="section-label">Configuration</div>
+    <div class="info-line"><span class="k">Course Distance</span><span class="v" id="cfgDist">&mdash;</span></div>
+    <div class="info-line"><span class="k">Straight-Line Distance</span><span class="v" id="cfgStraight">&mdash;</span></div>
+    <div class="info-line"><span class="k">Perfect Time</span><span class="v" id="cfgTime">&mdash;</span></div>
+    <div class="info-line"><span class="k">Tech Speed (DQ Over)</span><span class="v" id="cfgTech">&mdash;</span></div>
+    <div class="info-line"><span class="k">Min Speed (DQ Under)</span><span class="v" id="cfgMin">&mdash;</span></div>
+    <div class="info-line"><span class="k">Splits</span><span class="v" id="cfgSplits">&mdash;</span></div>
+
+    <button class="cta" id="toPrestage" disabled>Prestage</button>
+  </div>
+</div>
+
+<!-- ==================== COORD MODAL ==================== -->
+<div id="coordModal" class="modal-bg">
+  <div class="modal">
+    <h3 id="modalTitle">Enter Coordinates</h3>
+    <label>Latitude</label>
+    <input type="text" id="modalLat" inputmode="decimal" placeholder="30.8500">
+    <label>Longitude</label>
+    <input type="text" id="modalLng" inputmode="decimal" placeholder="-102.8800">
+    <div class="paste-hint">Paste Google Maps coords "30.85, -102.88" into Latitude — auto-splits.</div>
+    <div class="modal-btns">
+      <button id="modalCancel">Cancel</button>
+      <button id="modalSave" class="save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PRESTAGE SCREEN ==================== -->
+<div id="prestage" class="screen">
+  <div class="brand-hdr">
+    <div class="brand-left">
+      <div class="r-logo">
+        <svg width="28" height="24" viewBox="0 0 40 35" fill="none">
+          <path d="M8 2C8 2 14 2 20 2C26 2 32 5 32 12C32 17 29 20 25 21L35 33H28L19 21H15V33H8V2Z" fill="#e31937"/>
+          <path d="M15 8V16H19C22 16 25 14.5 25 12C25 9.5 22 8 19 8H15Z" fill="#000"/>
+          <circle cx="35" cy="31" r="3" fill="#e31937"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="brand-rc-row"><span class="brand-race">RACE</span><span class="brand-control">CONTROL</span></div>
+        <div class="brand-sub-label">Prestage</div>
+      </div>
+    </div>
+    <div class="brand-right">
+      <span id="gpsDotPre" class="gps-dot"></span>
+      <span class="gps-stat" id="gpsStatPre">NO FIX</span>
+    </div>
+  </div>
+  <div class="exp-ribbon">Experimental &middot; Not For Public Release &middot; v3.0</div>
+  <div class="body">
+    <div class="prestage-label">GPS Time of Day (UTC)</div>
+    <div class="prestage-time" id="gpsClock">&mdash;:&mdash;:&mdash;</div>
+    <div class="prestage-label">Horizontal Accuracy</div>
+    <div style="text-align:center; font-family:var(--mono); font-size:20px; font-weight:700;" id="accuracy">&mdash; m</div>
+    <div class="prestage-label" style="margin-top:20px;">Arm Start Minute</div>
+    <div class="start-picker" id="startPicker"></div>
+    <div class="prestage-label">Countdown to Start</div>
+    <div class="countdown" id="countdown">&mdash;</div>
+    <button class="cta secondary" id="backToSetup" style="margin-top: 16px;">Back</button>
+    <button class="cta" id="disarmBtn" style="display:none; background: var(--red); color: #fff;">Disarm</button>
+  </div>
+</div>
+
+<!-- ==================== RACE SCREEN ==================== -->
+<div id="race" class="screen">
+  <div class="brand-hdr" style="padding: 6px 10px;">
+    <div class="brand-left">
+      <div class="r-logo">
+        <svg width="22" height="20" viewBox="0 0 40 35" fill="none">
+          <path d="M8 2C8 2 14 2 20 2C26 2 32 5 32 12C32 17 29 20 25 21L35 33H28L19 21H15V33H8V2Z" fill="#e31937"/>
+          <path d="M15 8V16H19C22 16 25 14.5 25 12C25 9.5 22 8 19 8H15Z" fill="#000"/>
+          <circle cx="35" cy="31" r="3" fill="#e31937"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="brand-rc-row"><span class="brand-race" style="font-size:10px;">RACE</span><span class="brand-control" style="font-size:10px;">CONTROL</span></div>
+        <div class="brand-sub-label" id="raceInfo" style="font-size:8px;letter-spacing:0.1em;">&mdash;</div>
+      </div>
+    </div>
+    <div class="brand-right">
+      <span id="gpsDotRace" class="gps-dot"></span>
+      <span class="gps-stat" id="elapsedTop">00:00</span>
+    </div>
+  </div>
+  <div id="dqWarning" class="warning-banner hidden">TECH SPEED — SLOW DOWN — DQ RISK</div>
+  <div id="sprintBanner" class="sprint-banner hidden">
+    <div class="sprint-label">FINAL SPRINT — 1/4 MILE SPLITS</div>
+    <div class="sprint-msg" id="sprintMsg">&mdash;</div>
+  </div>
+  <div class="split-bar" id="splitBar"></div>
+  <div class="telemetry">
+    <div class="delta-block" id="deltaBlock">
+      <div class="delta-label">Time Delta</div>
+      <div class="delta-value" id="deltaVal">+0.00</div>
+      <div class="delta-hint" id="deltaHint">ON PACE</div>
+    </div>
+    <div class="target-block">
+      <div class="target-label">Hold This Speed to Hit Perfect</div>
+      <div class="target-value"><span id="correctSpd">&mdash;</span><span class="target-unit">mph</span></div>
+    </div>
+    <div class="speed-row">
+      <div class="speed-cell"><div class="cell-label">Current GPS</div><div class="cell-value" id="curSpd">&mdash;</div></div>
+      <div class="speed-cell"><div class="cell-label">Avg So Far</div><div class="cell-value" id="avgSpd">&mdash;</div></div>
+    </div>
+    <div class="meta-grid">
+      <div class="meta-cell"><div class="cell-label">Dist Left</div><div class="meta-value" id="distLeft">&mdash;</div></div>
+      <div class="meta-cell"><div class="cell-label">Time Left</div><div class="meta-value" id="timeLeft">&mdash;</div></div>
+      <div class="meta-cell"><div class="cell-label">Elapsed</div><div class="meta-value" id="elapsed">&mdash;</div></div>
+    </div>
+    <!-- G-PAD VISUALIZATION -->
+    <div class="g-pad-container" id="gPadContainer">
+      <svg class="g-pad-svg" viewBox="0 0 100 100" id="gPadSvg">
+        <circle cx="50" cy="50" r="48" fill="none" stroke="#222" stroke-width="1"/>
+        <circle cx="50" cy="50" r="32" fill="none" stroke="#1a1a1a" stroke-width="0.5"/>
+        <circle cx="50" cy="50" r="16" fill="none" stroke="#1a1a1a" stroke-width="0.5"/>
+        <line x1="2" y1="50" x2="98" y2="50" stroke="#1a1a1a" stroke-width="0.5"/>
+        <line x1="50" y1="2" x2="50" y2="98" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="50" y="8" text-anchor="middle" fill="#555" font-size="6" font-family="var(--mono)">ACCEL</text>
+        <text x="50" y="97" text-anchor="middle" fill="#555" font-size="6" font-family="var(--mono)">BRAKE</text>
+        <text x="5" y="52" fill="#555" font-size="6" font-family="var(--mono)">L</text>
+        <text x="92" y="52" fill="#555" font-size="6" font-family="var(--mono)">R</text>
+        <circle id="gDot" cx="50" cy="50" r="5" fill="var(--green)" opacity="0.9"/>
+      </svg>
+      <div class="g-pad-data">
+        <div class="g-data-cell"><div class="g-data-label">Lat G</div><div class="g-data-value" id="gLat">0.00</div></div>
+        <div class="g-data-cell"><div class="g-data-label">Long G</div><div class="g-data-value" id="gLong">0.00</div></div>
+        <div class="g-data-cell"><div class="g-data-label">Peak Lat</div><div class="g-data-value" id="gPeakLat">0.00</div></div>
+        <div class="g-data-cell"><div class="g-data-label">Peak Long</div><div class="g-data-value" id="gPeakLong">0.00</div></div>
+        <div class="g-data-cell"><div class="g-data-label">Heading</div><div class="g-data-value" id="gHeading">&mdash;</div></div>
+        <div class="g-data-cell"><div class="g-data-label">Samples</div><div class="g-data-value" id="gSamples">0</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="race-controls">
+    <button id="markFinish">Manual Finish</button>
+    <button id="stopRun" class="stop">Abort</button>
+  </div>
+</div>
+
+<!-- ==================== DONE SCREEN ==================== -->
+<div id="done" class="screen">
+  <div class="brand-hdr">
+    <div class="brand-left">
+      <div class="r-logo">
+        <svg width="28" height="24" viewBox="0 0 40 35" fill="none">
+          <path d="M8 2C8 2 14 2 20 2C26 2 32 5 32 12C32 17 29 20 25 21L35 33H28L19 21H15V33H8V2Z" fill="#e31937"/>
+          <path d="M15 8V16H19C22 16 25 14.5 25 12C25 9.5 22 8 19 8H15Z" fill="#000"/>
+          <circle cx="35" cy="31" r="3" fill="#e31937"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="brand-rc-row"><span class="brand-race">RACE</span><span class="brand-control">CONTROL</span></div>
+        <div class="brand-sub-label">Race Complete</div>
+      </div>
+    </div>
+    <div class="brand-right"><span class="gps-stat" id="doneRaceInfo">&mdash;</span></div>
+  </div>
+  <div class="exp-ribbon">Experimental &middot; Not For Public Release &middot; v3.0</div>
+  <div class="body">
+    <div class="result-hero">
+      <div class="label">Final Time Delta</div>
+      <div class="value" id="finalDelta">&mdash;</div>
+      <div class="verdict" id="finalVerdict">&mdash;</div>
+    </div>
+    <div class="info-line"><span class="k">Elapsed</span><span class="v" id="finalElapsed">&mdash;</span></div>
+    <div class="info-line"><span class="k">Perfect Time</span><span class="v" id="finalPerfect">&mdash;</span></div>
+    <div class="info-line"><span class="k">Avg Speed</span><span class="v" id="finalAvg">&mdash;</span></div>
+    <div class="info-line"><span class="k">Peak Speed</span><span class="v" id="finalPeak">&mdash;</span></div>
+    <div class="info-line"><span class="k">Distance</span><span class="v" id="finalDist">&mdash;</span></div>
+    <div class="info-line"><span class="k">GPS Samples</span><span class="v" id="finalSamples">&mdash;</span></div>
+    <div class="info-line"><span class="k">Motion Samples</span><span class="v" id="finalMotionSamples">&mdash;</span></div>
+    <div class="info-line"><span class="k">Peak Lateral G</span><span class="v" id="finalPeakLatG">&mdash;</span></div>
+    <div class="info-line"><span class="k">Peak Longitudinal G</span><span class="v" id="finalPeakLongG">&mdash;</span></div>
+    <div class="info-line"><span class="k">Splits Logged</span><span class="v" id="finalSplits">&mdash;</span></div>
+
+    <div class="section-label">Export Race Data</div>
+    <div class="export-grid">
+      <button class="cta export-btn" id="exportGpsCsv"><span class="exp-icon">GPS</span>GPS Track (CSV)</button>
+      <button class="cta export-btn" id="exportMotionCsv"><span class="exp-icon">IMU</span>Motion (CSV)</button>
+      <button class="cta export-btn" id="exportGpx"><span class="exp-icon">GPX</span>GPX Track</button>
+      <button class="cta export-btn" id="exportJson"><span class="exp-icon">{ }</span>Full JSON</button>
+      <button class="cta export-btn export-full" id="exportReport"><span class="exp-icon">REPORT</span>Race Report (HTML)</button>
+    </div>
+    <button class="cta secondary" id="newRun" style="margin-top:12px;">New Run</button>
+  </div>
+</div>
+
+<script>
+/* =============== CONSTANTS =============== */
+const RACES = {
+  bborr_south: { name: 'BBORR Leg 1 (Ft Stockton to Sanderson)', detail: '59.00 mi | US 285 South', distance_mi: 59.00, start: { lat: 30.8500, lng: -102.8800 }, finish: { lat: 30.1435, lng: -102.3940 }, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,165], tech_above_class: 15, min_below_class: 30 },
+  bborr_north: { name: 'BBORR Leg 2 (Sanderson to Ft Stockton)', detail: '59.00 mi | US 285 North', distance_mi: 59.00, start: { lat: 30.1435, lng: -102.3940 }, finish: { lat: 30.8500, lng: -102.8800 }, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,165], tech_above_class: 15, min_below_class: 30 },
+  sscc: { name: 'Silver State Classic Challenge', detail: '90.00 mi | Nevada SR-318', distance_mi: 90.00, start: { lat: 38.8600, lng: -115.0200 }, finish: { lat: 37.6000, lng: -115.2200 }, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,170,180], tech_above_class: 15, min_below_class: 30 },
+  norc: { name: 'Nevada Open Road Challenge', detail: '90.00 mi | Nevada SR-318 (Down & Back)', distance_mi: 90.00, start: { lat: 38.8600, lng: -115.0200 }, finish: { lat: 37.6000, lng: -115.2200 }, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,170,180], tech_above_class: 15, min_below_class: 30 }
+};
+
+const MS_PER_MIN = 60000, MI_PER_M = 0.000621371, MS_TO_MPH = 2.23694;
+const COORD_STORAGE_KEY = 'orr_pace_custom_coords_v3';
+
+const state = {
+  race: null, classSpeed: null, armedStartUtcMs: null,
+  raceActive: false, startedAtMs: null,
+  samples: [], motionSamples: [], lastPos: null, distanceMi: 0, peakMph: 0,
+  gpsWatchId: null, gpsTimeOffsetMs: 0, lastFixTime: 0,
+  customCoords: {},
+  motionEnabled: false, compassEnabled: false, speechEnabled: false,
+  lastAccel: { x: 0, y: 0, z: 0 }, lastGyro: { alpha: 0, beta: 0, gamma: 0 },
+  heading: null, gravityOffset: { x: 0, y: 0, z: 0 },
+  filteredGLat: 0, filteredGLong: 0, peakGLat: 0, peakGLong: 0,
+  splits: [], nextSplitIdx: 0, sprintMode: false
+};
+
+/* =============== UTILITY FUNCTIONS =============== */
+function fmtDelta(sec) {
+  if (sec === null || sec === undefined || isNaN(sec)) return '\u2014';
+  return (sec >= 0 ? '+' : '\u2212') + Math.abs(sec).toFixed(2);
+}
+function fmtTime(sec) {
+  if (sec === null || sec === undefined || isNaN(sec) || sec < 0) return '\u2014';
+  const m = Math.floor(sec / 60);
+  const s = sec - m * 60;
+  return m.toString().padStart(2,'0') + ':' + s.toFixed(1).padStart(4,'0');
+}
+function fmtClock(ms) {
+  const d = new Date(ms);
+  return d.getUTCHours().toString().padStart(2,'0') + ':' +
+         d.getUTCMinutes().toString().padStart(2,'0') + ':' +
+         d.getUTCSeconds().toString().padStart(2,'0') + '.' +
+         d.getUTCMilliseconds().toString().padStart(3,'0');
+}
+function haversine(a, b) {
+  const R = 6371000, toRad = x => x * Math.PI / 180;
+  const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng);
+  const la1 = toRad(a.lat), la2 = toRad(b.lat);
+  const h = Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function nowUtcMs() { return Date.now() + state.gpsTimeOffsetMs; }
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function fileTag() {
+  const raceTag = (state.race || 'unknown').replace(/_/g, '-');
+  const dateTag = new Date(state.startedAtMs || Date.now()).toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  return '915rc-' + raceTag + '-' + (state.classSpeed || 0) + 'mph-' + dateTag;
+}
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+/* =============== COORDINATE STORAGE =============== */
+function loadCustomCoords() {
+  try { const raw = localStorage.getItem(COORD_STORAGE_KEY); if (raw) state.customCoords = JSON.parse(raw); } catch (e) { state.customCoords = {}; }
+}
+function saveCustomCoords() {
+  try { localStorage.setItem(COORD_STORAGE_KEY, JSON.stringify(state.customCoords)); } catch (e) {}
+}
+function effectiveCoords(raceKey) {
+  const r = RACES[raceKey], custom = state.customCoords[raceKey] || {};
+  return { start: custom.start || r.start, finish: custom.finish || r.finish, customStart: !!custom.start, customFinish: !!custom.finish };
+}
+function setCustomCoord(raceKey, which, coord) {
+  if (!state.customCoords[raceKey]) state.customCoords[raceKey] = {};
+  state.customCoords[raceKey][which] = coord;
+  saveCustomCoords();
+}
+function clearCustomCoords(raceKey) { delete state.customCoords[raceKey]; saveCustomCoords(); }
+
+/* =============== RENDER SETUP =============== */
+function renderSetup() {
+  const grid = document.getElementById('raceGrid');
+  grid.innerHTML = '';
+  Object.entries(RACES).forEach(([key, r]) => {
+    const btn = document.createElement('button');
+    btn.className = 'race-btn' + (state.race === key ? ' selected' : '');
+    btn.innerHTML = '<div class="name">' + r.name + '</div><div class="details">' + r.detail + '</div>';
+    btn.onclick = () => { state.race = key; state.classSpeed = null; renderSetup(); };
+    grid.appendChild(btn);
+  });
+  const classRow = document.getElementById('classRow');
+  classRow.innerHTML = '';
+  if (state.race) {
+    RACES[state.race].classes.forEach(c => {
+      const btn = document.createElement('button');
+      btn.className = 'class-btn' + (state.classSpeed === c ? ' selected' : '');
+      btn.textContent = c;
+      btn.onclick = () => { state.classSpeed = c; renderSetup(); };
+      classRow.appendChild(btn);
+    });
+  }
+  renderCoordCards();
+  if (state.race && state.classSpeed) {
+    const r = RACES[state.race], coords = effectiveCoords(state.race);
+    const perfectSec = (r.distance_mi / state.classSpeed) * 3600;
+    const tech = state.classSpeed + r.tech_above_class;
+    const minSpd = Math.max(state.classSpeed - r.min_below_class, 70);
+    const straightMi = haversine(coords.start, coords.finish) * MI_PER_M;
+    const sprintStart = Math.max(r.distance_mi - 5, 0);
+    const regSplits = Math.floor(sprintStart / 3);
+    const sprSplits = Math.floor(5 / 0.25);
+    document.getElementById('cfgDist').textContent = r.distance_mi.toFixed(2) + ' mi';
+    document.getElementById('cfgStraight').textContent = straightMi.toFixed(2) + ' mi';
+    document.getElementById('cfgTime').textContent = fmtTime(perfectSec);
+    document.getElementById('cfgTech').textContent = tech + ' mph';
+    document.getElementById('cfgMin').textContent = minSpd + ' mph';
+    document.getElementById('cfgSplits').textContent = regSplits + ' x 3mi + ' + sprSplits + ' x 1/4mi';
+    document.getElementById('toPrestage').disabled = false;
+  } else {
+    ['cfgDist','cfgStraight','cfgTime','cfgTech','cfgMin','cfgSplits'].forEach(id => document.getElementById(id).textContent = '\u2014');
+    document.getElementById('toPrestage').disabled = true;
+  }
+}
+function renderCoordCards() {
+  const startCardEl = document.getElementById('startCard');
+  const finishCardEl = document.getElementById('finishCard');
+  const startStatus = document.getElementById('startStatus');
+  const finishStatus = document.getElementById('finishStatus');
+  const startCoord = document.getElementById('startCoord');
+  const finishCoord = document.getElementById('finishCoord');
+  if (!state.race) {
+    startCoord.textContent = '\u2014 select a race above \u2014';
+    finishCoord.textContent = '\u2014 select a race above \u2014';
+    startStatus.textContent = '\u2014'; finishStatus.textContent = '\u2014';
+    startStatus.classList.remove('saved'); finishStatus.classList.remove('saved');
+    startCardEl.classList.remove('captured'); finishCardEl.classList.remove('captured');
+    return;
+  }
+  const c = effectiveCoords(state.race);
+  startCoord.textContent = c.start.lat.toFixed(6) + ', ' + c.start.lng.toFixed(6);
+  finishCoord.textContent = c.finish.lat.toFixed(6) + ', ' + c.finish.lng.toFixed(6);
+  if (c.customStart) { startStatus.textContent = 'SAVED'; startStatus.classList.add('saved'); startCardEl.classList.add('captured'); }
+  else { startStatus.textContent = 'DEFAULT'; startStatus.classList.remove('saved'); startCardEl.classList.remove('captured'); }
+  if (c.customFinish) { finishStatus.textContent = 'SAVED'; finishStatus.classList.add('saved'); finishCardEl.classList.add('captured'); }
+  else { finishStatus.textContent = 'DEFAULT'; finishStatus.classList.remove('saved'); finishCardEl.classList.remove('captured'); }
+}
+
+/* =============== GPS =============== */
+function startGps() {
+  if (!navigator.geolocation) { alert('Geolocation not supported.'); return; }
+  if (state.gpsWatchId !== null) return;
+  state.gpsWatchId = navigator.geolocation.watchPosition(onGpsFix, onGpsError, { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 });
+}
+function onGpsFix(pos) {
+  const t = pos.timestamp;
+  state.lastFixTime = t;
+  const fix = { t, lat: pos.coords.latitude, lng: pos.coords.longitude, speed_ms: pos.coords.speed, accuracy: pos.coords.accuracy, heading_gps: pos.coords.heading };
+  const acc = fix.accuracy;
+  let quality = 'bad';
+  if (acc !== null && acc < 10) quality = 'ok';
+  else if (acc !== null && acc < 25) quality = 'mid';
+  ['gpsDotSetup','gpsDotPre','gpsDotRace'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.classList.remove('ok','mid'); if (quality === 'ok') el.classList.add('ok'); else if (quality === 'mid') el.classList.add('mid'); }
+  });
+  const stat = acc !== null ? ('\u00b1' + acc.toFixed(0) + 'm') : 'NO FIX';
+  ['gpsStatSetup','gpsStatPre'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = stat; });
+  const accEl = document.getElementById('accuracy');
+  if (accEl) accEl.textContent = acc !== null ? (acc.toFixed(1) + ' m') : '\u2014 m';
+  document.getElementById('sensGps').textContent = acc !== null ? ('\u00b1' + acc.toFixed(1) + ' m') : 'NO FIX';
+  if (state.raceActive) handleRaceFix(fix);
+  state.lastPos = fix;
+}
+function onGpsError(err) { console.warn('GPS error', err); }
+
+/* =============== MOTION SENSORS =============== */
+async function requestMotionPermission() {
+  try {
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+      const result = await DeviceMotionEvent.requestPermission();
+      if (result !== 'granted') { alert('Motion permission denied.'); return false; }
+    }
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const result = await DeviceOrientationEvent.requestPermission();
+      if (result === 'granted') state.compassEnabled = true;
+    } else { state.compassEnabled = true; }
+    window.addEventListener('devicemotion', onMotion);
+    window.addEventListener('deviceorientation', onOrientation);
+    state.motionEnabled = true;
+    document.getElementById('sensMotion').textContent = 'ENABLED';
+    document.getElementById('sensMotion').style.color = 'var(--green)';
+    document.getElementById('sensCompass').textContent = state.compassEnabled ? 'ENABLED' : 'N/A';
+    if (state.compassEnabled) document.getElementById('sensCompass').style.color = 'var(--green)';
+    document.getElementById('reqMotion').classList.add('enabled');
+    document.getElementById('reqMotion').textContent = 'Motion: ON';
+    return true;
+  } catch (e) { alert('Could not enable motion sensors: ' + e.message); return false; }
+}
+function onMotion(e) {
+  const a = e.accelerationIncludingGravity || e.acceleration;
+  if (!a) return;
+  state.lastAccel = { x: a.x || 0, y: a.y || 0, z: a.z || 0 };
+  const g = e.rotationRate;
+  if (g) state.lastGyro = { alpha: g.alpha || 0, beta: g.beta || 0, gamma: g.gamma || 0 };
+  if (state.raceActive && state.gravityOffset) {
+    const dx = state.lastAccel.x - state.gravityOffset.x;
+    const dy = state.lastAccel.y - state.gravityOffset.y;
+    const gLat = dx / 9.80665;
+    const gLong = dy / 9.80665;
+    state.filteredGLat = 0.8 * state.filteredGLat + 0.2 * gLat;
+    state.filteredGLong = 0.8 * state.filteredGLong + 0.2 * gLong;
+    if (Math.abs(state.filteredGLat) > state.peakGLat) state.peakGLat = Math.abs(state.filteredGLat);
+    if (Math.abs(state.filteredGLong) > state.peakGLong) state.peakGLong = Math.abs(state.filteredGLong);
+    // Record motion sample
+    state.motionSamples.push({
+      t: Date.now(), ax: a.x||0, ay: a.y||0, az: a.z||0,
+      gLat: state.filteredGLat, gLong: state.filteredGLong,
+      rAlpha: state.lastGyro.alpha, rBeta: state.lastGyro.beta, rGamma: state.lastGyro.gamma,
+      heading: state.heading
+    });
+  }
+}
+function onOrientation(e) {
+  if (typeof e.webkitCompassHeading === 'number') state.heading = e.webkitCompassHeading;
+  else if (typeof e.alpha === 'number') state.heading = (360 - e.alpha) % 360;
+}
+function captureGravityOffset() {
+  state.gravityOffset = { x: state.lastAccel.x, y: state.lastAccel.y, z: state.lastAccel.z };
+}
+
+/* =============== SPEECH =============== */
+function enableSpeech() {
+  if (!('speechSynthesis' in window)) { alert('Speech not supported.'); return; }
+  const u = new SpeechSynthesisUtterance('Audio callouts enabled');
+  u.volume = 1; u.rate = 1.0;
+  window.speechSynthesis.speak(u);
+  state.speechEnabled = true;
+  document.getElementById('sensSpeech').textContent = 'ENABLED';
+  document.getElementById('sensSpeech').style.color = 'var(--green)';
+  document.getElementById('reqAudio').classList.add('enabled');
+  document.getElementById('reqAudio').textContent = 'Audio: ON';
+}
+function speak(text, priority) {
+  if (!state.speechEnabled) return;
+  if (priority) window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 1.1; u.volume = 1.0;
+  window.speechSynthesis.speak(u);
+}
+
+/* =============== SPLITS =============== */
+function buildSplits() {
+  const r = RACES[state.race];
+  const total = r.distance_mi;
+  const sprintStart = Math.max(total - 5, 0);
+  const splits = [];
+  for (let mi = 3; mi <= sprintStart + 0.001; mi += 3) {
+    const m = Math.min(mi, sprintStart);
+    splits.push({ mi: m, target_sec: (m / state.classSpeed) * 3600, actual_sec: null, delta_sec: null, type: 'regular' });
+  }
+  for (let mi = sprintStart + 0.25; mi <= total + 0.001; mi += 0.25) {
+    const m = Math.min(mi, total);
+    splits.push({ mi: m, target_sec: (m / state.classSpeed) * 3600, actual_sec: null, delta_sec: null, type: 'sprint' });
+  }
+  splits.sort((a, b) => a.mi - b.mi);
+  state.splits = splits;
+  state.nextSplitIdx = 0;
+  renderSplitBar();
+}
+function renderSplitBar() {
+  const bar = document.getElementById('splitBar');
+  bar.innerHTML = '';
+  state.splits.forEach((s, idx) => {
+    const chip = document.createElement('div');
+    chip.className = 'split-chip';
+    if (s.actual_sec !== null) {
+      chip.classList.add('passed');
+      const ad = Math.abs(s.delta_sec);
+      if (ad < 0.15) chip.classList.add('perfect');
+      else if (s.delta_sec < 0) chip.classList.add('fast');
+      else chip.classList.add('slow');
+    } else if (idx === state.nextSplitIdx) { chip.classList.add('current'); }
+    const miLabel = s.type === 'sprint' ? s.mi.toFixed(2) : s.mi.toFixed(0);
+    const dtLabel = s.delta_sec !== null ? fmtDelta(s.delta_sec) : '\u2014';
+    chip.innerHTML = '<div class="mi">' + miLabel + ' mi</div><div class="dt">' + dtLabel + '</div>';
+    bar.appendChild(chip);
+  });
+  const current = bar.querySelector('.split-chip.current');
+  if (current) current.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+}
+function checkSplits(elapsedSec, distMi) {
+  while (state.nextSplitIdx < state.splits.length) {
+    const s = state.splits[state.nextSplitIdx];
+    if (distMi >= s.mi) {
+      s.actual_sec = elapsedSec;
+      s.delta_sec = elapsedSec - s.target_sec;
+      const absD = Math.abs(s.delta_sec).toFixed(1);
+      let msg;
+      if (Math.abs(s.delta_sec) < 0.15) msg = (s.type === 'sprint' ? s.mi.toFixed(2) : s.mi.toFixed(0)) + ', on pace';
+      else if (s.delta_sec < 0) msg = (s.type === 'sprint' ? s.mi.toFixed(2) : s.mi.toFixed(0)) + ', ' + absD + ' fast';
+      else msg = (s.type === 'sprint' ? s.mi.toFixed(2) : s.mi.toFixed(0)) + ', ' + absD + ' slow';
+      speak(msg, s.type === 'sprint');
+      state.nextSplitIdx++;
+    } else break;
+  }
+  renderSplitBar();
+}
+
+/* =============== PRESTAGE =============== */
+let prestageTimer = null;
+function enterPrestage() {
+  show('prestage');
+  renderStartPicker();
+  if (!prestageTimer) prestageTimer = setInterval(tickPrestage, 100);
+}
+function tickPrestage() {
+  document.getElementById('gpsClock').textContent = fmtClock(nowUtcMs());
+  if (state.armedStartUtcMs !== null) {
+    const remainingMs = state.armedStartUtcMs - nowUtcMs();
+    const cEl = document.getElementById('countdown');
+    if (remainingMs > 0) {
+      const remSec = remainingMs / 1000;
+      cEl.classList.remove('go');
+      cEl.textContent = (remSec > 10 ? remSec.toFixed(1) : remSec.toFixed(2)) + 's';
+    } else { cEl.classList.add('go'); cEl.textContent = 'GO'; launchRace(); }
+  } else { document.getElementById('countdown').textContent = '\u2014'; }
+}
+function renderStartPicker() {
+  const picker = document.getElementById('startPicker');
+  picker.innerHTML = '';
+  const now = nowUtcMs();
+  const nextMinute = Math.ceil(now / MS_PER_MIN) * MS_PER_MIN;
+  for (let i = 0; i < 8; i++) {
+    const ms = nextMinute + i * MS_PER_MIN;
+    const d = new Date(ms);
+    const hh = d.getUTCHours().toString().padStart(2, '0');
+    const mm = d.getUTCMinutes().toString().padStart(2, '0');
+    const btn = document.createElement('button');
+    btn.className = 'start-btn' + (state.armedStartUtcMs === ms ? ' armed' : '');
+    btn.innerHTML = '<div style="font-size:10px;color:var(--muted);">UTC</div><div>' + hh + ':' + mm + ':00</div>';
+    btn.onclick = () => {
+      state.armedStartUtcMs = ms;
+      renderStartPicker();
+      document.getElementById('disarmBtn').style.display = 'block';
+    };
+    picker.appendChild(btn);
+  }
+}
+
+/* =============== RACE =============== */
+function launchRace() {
+  if (state.raceActive) return;
+  state.raceActive = true;
+  state.startedAtMs = state.armedStartUtcMs;
+  state.samples = []; state.motionSamples = [];
+  state.distanceMi = 0; state.peakMph = 0;
+  state.lastPos = null; state.sprintMode = false;
+  state.peakGLat = 0; state.peakGLong = 0;
+  state.filteredGLat = 0; state.filteredGLong = 0;
+  buildSplits();
+  if (state.motionEnabled) {
+    captureGravityOffset();
+    document.getElementById('gPadContainer').classList.add('active');
+  }
+  clearInterval(prestageTimer); prestageTimer = null;
+  const r = RACES[state.race];
+  document.getElementById('raceInfo').textContent = r.name.split('(')[0].trim() + ' | ' + state.classSpeed + ' CLASS';
+  show('race');
+  speak('Clock running', true);
+  state.raceTicker = setInterval(tickRace, 100);
+  requestWakeLock();
+}
+
+function handleRaceFix(fix) {
+  fix.accel = { x: state.lastAccel.x, y: state.lastAccel.y, z: state.lastAccel.z };
+  fix.heading = state.heading;
+  fix.g_lat = state.lastAccel.x - state.gravityOffset.x;
+  fix.g_long = state.lastAccel.y - state.gravityOffset.y;
+  if (state.lastPos) {
+    const dM = haversine(state.lastPos, fix);
+    const speedCheck = fix.speed_ms !== null ? fix.speed_ms : (dM / ((fix.t - state.lastPos.t) / 1000));
+    if (speedCheck > 2 && dM < 500) state.distanceMi += dM * MI_PER_M;
+  }
+  if (fix.speed_ms !== null) {
+    const mph = fix.speed_ms * MS_TO_MPH;
+    if (mph > state.peakMph) state.peakMph = mph;
+  }
+  state.samples.push(fix);
+}
+
+function tickRace() {
+  const r = RACES[state.race];
+  const now = nowUtcMs();
+  const elapsedSec = (now - state.startedAtMs) / 1000;
+  if (elapsedSec < 0) return;
+  const perfectSec = (r.distance_mi / state.classSpeed) * 3600;
+  const timeRemainSec = perfectSec - elapsedSec;
+  const distRemainMi = Math.max(r.distance_mi - state.distanceMi, 0);
+  const curMph = (state.lastPos && state.lastPos.speed_ms !== null) ? state.lastPos.speed_ms * MS_TO_MPH : null;
+  const avgMph = elapsedSec > 0 ? (state.distanceMi / (elapsedSec / 3600)) : 0;
+  const expectedTimeAtDist = (state.distanceMi / state.classSpeed) * 3600;
+  const deltaSec = elapsedSec - expectedTimeAtDist;
+  let correctMph = null;
+  if (timeRemainSec > 0 && distRemainMi > 0) correctMph = distRemainMi / (timeRemainSec / 3600);
+
+  // Delta display
+  const deltaEl = document.getElementById('deltaVal');
+  const hintEl = document.getElementById('deltaHint');
+  const blockEl = document.getElementById('deltaBlock');
+  deltaEl.classList.remove('ahead','behind','perfect');
+  hintEl.classList.remove('ahead','behind','perfect');
+  blockEl.classList.remove('ahead','behind','perfect');
+  deltaEl.textContent = fmtDelta(deltaSec);
+  if (Math.abs(deltaSec) < 0.15) {
+    deltaEl.classList.add('perfect'); hintEl.classList.add('perfect'); blockEl.classList.add('perfect');
+    hintEl.textContent = 'ON PACE';
+  } else if (deltaSec < 0) {
+    deltaEl.classList.add('ahead'); hintEl.classList.add('ahead'); blockEl.classList.add('ahead');
+    hintEl.textContent = 'AHEAD \u2014 SLOW DOWN';
+  } else {
+    deltaEl.classList.add('behind'); hintEl.classList.add('behind'); blockEl.classList.add('behind');
+    hintEl.textContent = 'BEHIND \u2014 SPEED UP';
+  }
+  document.getElementById('correctSpd').textContent = (correctMph !== null && isFinite(correctMph)) ? correctMph.toFixed(1) : '\u2014';
+
+  // Speed
+  const curEl = document.getElementById('curSpd');
+  if (curMph !== null) {
+    curEl.textContent = curMph.toFixed(0);
+    curEl.classList.remove('warn','danger');
+    const tech = state.classSpeed + r.tech_above_class;
+    if (curMph >= tech) { curEl.classList.add('danger'); document.getElementById('dqWarning').classList.remove('hidden'); }
+    else if (curMph >= tech - 3) { curEl.classList.add('warn'); document.getElementById('dqWarning').classList.add('hidden'); }
+    else { document.getElementById('dqWarning').classList.add('hidden'); }
+  } else { curEl.textContent = '\u2014'; }
+
+  document.getElementById('avgSpd').textContent = avgMph > 0 ? avgMph.toFixed(1) : '\u2014';
+  document.getElementById('distLeft').textContent = distRemainMi.toFixed(2) + ' mi';
+  document.getElementById('timeLeft').textContent = fmtTime(Math.max(timeRemainSec, 0));
+  document.getElementById('elapsed').textContent = fmtTime(elapsedSec);
+  document.getElementById('elapsedTop').textContent = fmtTime(elapsedSec);
+
+  // G-Pad
+  if (state.motionEnabled) {
+    const gLat = state.filteredGLat;
+    const gLong = state.filteredGLong;
+    const gLatEl = document.getElementById('gLat');
+    const gLongEl = document.getElementById('gLong');
+    gLatEl.textContent = (gLat >= 0 ? '+' : '') + gLat.toFixed(2);
+    gLongEl.textContent = (gLong >= 0 ? '+' : '') + gLong.toFixed(2);
+    gLatEl.className = 'g-data-value' + (Math.abs(gLat) > 1.0 ? ' crit' : Math.abs(gLat) > 0.6 ? ' warn' : '');
+    gLongEl.className = 'g-data-value' + (Math.abs(gLong) > 1.0 ? ' crit' : Math.abs(gLong) > 0.6 ? ' warn' : '');
+    document.getElementById('gPeakLat').textContent = state.peakGLat.toFixed(2);
+    document.getElementById('gPeakLong').textContent = state.peakGLong.toFixed(2);
+    document.getElementById('gHeading').textContent = state.heading !== null ? state.heading.toFixed(0) + '\u00b0' : '\u2014';
+    document.getElementById('gSamples').textContent = state.motionSamples.length;
+    // Move the G-dot on the SVG pad
+    const dotX = 50 + Math.max(-48, Math.min(48, gLat * 32));
+    const dotY = 50 + Math.max(-48, Math.min(48, gLong * 32));
+    const gDot = document.getElementById('gDot');
+    gDot.setAttribute('cx', dotX);
+    gDot.setAttribute('cy', dotY);
+    const gMag = Math.sqrt(gLat*gLat + gLong*gLong);
+    if (gMag > 1.0) gDot.setAttribute('fill', 'var(--red)');
+    else if (gMag > 0.6) gDot.setAttribute('fill', 'var(--amber)');
+    else gDot.setAttribute('fill', 'var(--green)');
+  }
+
+  checkSplits(elapsedSec, state.distanceMi);
+
+  // Sprint mode
+  const distToFinish = r.distance_mi - state.distanceMi;
+  if (distToFinish <= 5 && distToFinish > 0 && !state.sprintMode) {
+    state.sprintMode = true;
+    document.getElementById('sprintBanner').classList.remove('hidden');
+    speak('Five miles to finish, quarter mile splits active', true);
+  }
+  if (state.sprintMode) {
+    document.getElementById('sprintMsg').textContent = distToFinish.toFixed(2) + ' mi to finish | Delta ' + fmtDelta(deltaSec) + 's';
+  }
+  if (state.distanceMi >= r.distance_mi) finishRun('auto');
+}
+
+function finishRun(reason) {
+  if (!state.raceActive) return;
+  state.raceActive = false;
+  clearInterval(state.raceTicker);
+  releaseWakeLock();
+  const r = RACES[state.race];
+  const elapsedSec = (nowUtcMs() - state.startedAtMs) / 1000;
+  const perfectSec = (r.distance_mi / state.classSpeed) * 3600;
+  const finalDelta = elapsedSec - perfectSec;
+  const avgMph = state.distanceMi > 0 ? (state.distanceMi / (elapsedSec / 3600)) : 0;
+  document.getElementById('doneRaceInfo').textContent = state.classSpeed + ' CLASS';
+  document.getElementById('finalDelta').textContent = fmtDelta(finalDelta);
+  let verdict;
+  if (Math.abs(finalDelta) < 0.1) verdict = 'PERFECT RUN';
+  else if (Math.abs(finalDelta) < 0.25) verdict = 'PODIUM CONTENDER';
+  else if (Math.abs(finalDelta) < 0.5) verdict = 'STRONG RUN';
+  else if (Math.abs(finalDelta) < 2) verdict = 'SOLID EFFORT';
+  else verdict = 'ROOM TO IMPROVE';
+  if (reason === 'abort') verdict = 'RUN ABORTED';
+  document.getElementById('finalVerdict').textContent = verdict;
+  document.getElementById('finalElapsed').textContent = fmtTime(elapsedSec);
+  document.getElementById('finalPerfect').textContent = fmtTime(perfectSec);
+  document.getElementById('finalAvg').textContent = avgMph.toFixed(2) + ' mph';
+  document.getElementById('finalPeak').textContent = state.peakMph.toFixed(1) + ' mph';
+  document.getElementById('finalDist').textContent = state.distanceMi.toFixed(3) + ' mi';
+  document.getElementById('finalSamples').textContent = state.samples.length;
+  document.getElementById('finalMotionSamples').textContent = state.motionSamples.length;
+  document.getElementById('finalPeakLatG').textContent = state.peakGLat.toFixed(2) + ' G';
+  document.getElementById('finalPeakLongG').textContent = state.peakGLong.toFixed(2) + ' G';
+  const splitsPassed = state.splits.filter(s => s.actual_sec !== null).length;
+  document.getElementById('finalSplits').textContent = splitsPassed + ' / ' + state.splits.length;
+  if (reason !== 'abort') {
+    const absD = Math.abs(finalDelta).toFixed(2);
+    speak('Finish. ' + absD + ' seconds ' + (finalDelta >= 0 ? 'slow' : 'fast') + '. ' + verdict + '.', true);
+  }
+  show('done');
+}
+
+/* =============== WAKE LOCK =============== */
+let wakeLock = null;
+async function requestWakeLock() { try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {} }
+function releaseWakeLock() { if (wakeLock) { wakeLock.release(); wakeLock = null; } }
+
+/* =============== 5 EXPORT FORMATS =============== */
+
+// 1. GPS Track CSV
+function exportGpsCsv() {
+  let csv = 'timestamp_utc_ms,elapsed_sec,latitude,longitude,speed_mph,speed_ms,accuracy_m,heading_deg\n';
+  state.samples.forEach(s => {
+    const elapsed = ((s.t - state.startedAtMs) / 1000).toFixed(3);
+    const mph = s.speed_ms !== null ? (s.speed_ms * MS_TO_MPH).toFixed(2) : '';
+    const ms = s.speed_ms !== null ? s.speed_ms.toFixed(3) : '';
+    const hdg = s.heading_gps !== null && s.heading_gps !== undefined ? s.heading_gps.toFixed(1) : '';
+    csv += s.t + ',' + elapsed + ',' + s.lat.toFixed(7) + ',' + s.lng.toFixed(7) + ',' + mph + ',' + ms + ',' + s.accuracy.toFixed(1) + ',' + hdg + '\n';
+  });
+  downloadBlob(new Blob([csv], { type: 'text/csv' }), fileTag() + '-gps.csv');
+}
+
+// 2. Motion Track CSV
+function exportMotionCsv() {
+  let csv = 'timestamp_ms,accel_x,accel_y,accel_z,g_lateral,g_longitudinal,rot_alpha,rot_beta,rot_gamma,heading\n';
+  state.motionSamples.forEach(s => {
+    csv += s.t + ',' + s.ax.toFixed(4) + ',' + s.ay.toFixed(4) + ',' + s.az.toFixed(4) + ',' +
+           s.gLat.toFixed(4) + ',' + s.gLong.toFixed(4) + ',' +
+           s.rAlpha.toFixed(2) + ',' + s.rBeta.toFixed(2) + ',' + s.rGamma.toFixed(2) + ',' +
+           (s.heading !== null ? s.heading.toFixed(1) : '') + '\n';
+  });
+  downloadBlob(new Blob([csv], { type: 'text/csv' }), fileTag() + '-motion.csv');
+}
+
+// 3. GPX
+function exportGpx() {
+  const startIso = new Date(state.startedAtMs).toISOString();
+  let gpx = '<?xml version="1.0" encoding="UTF-8"?>\n';
+  gpx += '<gpx version="1.1" creator="915 Race Control v3.0" xmlns="http://www.topografix.com/GPX/1/1">\n';
+  gpx += '  <metadata><name>' + RACES[state.race].name + ' - ' + state.classSpeed + ' mph</name><time>' + startIso + '</time></metadata>\n';
+  gpx += '  <trk>\n    <name>915RC Race Run</name>\n    <trkseg>\n';
+  state.samples.forEach(s => {
+    const iso = new Date(s.t).toISOString();
+    const spd = s.speed_ms !== null ? s.speed_ms.toFixed(3) : '0';
+    gpx += '      <trkpt lat="' + s.lat.toFixed(7) + '" lon="' + s.lng.toFixed(7) + '">\n';
+    gpx += '        <time>' + iso + '</time>\n';
+    gpx += '        <speed>' + spd + '</speed>\n';
+    gpx += '        <hdop>' + (s.accuracy / 5).toFixed(1) + '</hdop>\n';
+    gpx += '      </trkpt>\n';
+  });
+  gpx += '    </trkseg>\n  </trk>\n</gpx>';
+  downloadBlob(new Blob([gpx], { type: 'application/gpx+xml' }), fileTag() + '.gpx');
+}
+
+// 4. Full JSON
+function exportJson() {
+  const r = RACES[state.race];
+  const coords = effectiveCoords(state.race);
+  const elapsedSec = (nowUtcMs() - state.startedAtMs) / 1000;
+  const perfectSec = (r.distance_mi / state.classSpeed) * 3600;
+  const obj = {
+    version: '3.0',
+    generator: '915 Race Control',
+    team: 'Zeitler / Wolfe Racing',
+    vehicle: '2018 SRT Durango',
+    race: { key: state.race, name: r.name, distance_mi: r.distance_mi },
+    classSpeed_mph: state.classSpeed,
+    techSpeed_mph: state.classSpeed + r.tech_above_class,
+    coordinates: { start: coords.start, finish: coords.finish, customStart: coords.customStart, customFinish: coords.customFinish },
+    timing: {
+      start_utc_ms: state.startedAtMs,
+      start_iso: new Date(state.startedAtMs).toISOString(),
+      elapsed_sec: elapsedSec,
+      perfect_sec: perfectSec,
+      delta_sec: elapsedSec - perfectSec
+    },
+    performance: {
+      distance_mi: state.distanceMi,
+      avg_mph: state.distanceMi > 0 ? (state.distanceMi / (elapsedSec / 3600)) : 0,
+      peak_mph: state.peakMph,
+      peak_g_lateral: state.peakGLat,
+      peak_g_longitudinal: state.peakGLong
+    },
+    gps_samples: state.samples.map(s => ({
+      t: s.t, lat: s.lat, lng: s.lng,
+      speed_ms: s.speed_ms, accuracy: s.accuracy,
+      heading_gps: s.heading_gps
+    })),
+    motion_samples: state.motionSamples,
+    splits: state.splits
+  };
+  const json = JSON.stringify(obj, null, 2);
+  downloadBlob(new Blob([json], { type: 'application/json' }), fileTag() + '.json');
+}
+
+// 5. HTML Race Report
+function exportReport() {
+  const r = RACES[state.race];
+  const elapsedSec = state.samples.length > 0 ? ((state.samples[state.samples.length-1].t - state.startedAtMs) / 1000) : 0;
+  const perfectSec = (r.distance_mi / state.classSpeed) * 3600;
+  const finalDelta = elapsedSec - perfectSec;
+  const avgMph = state.distanceMi > 0 ? (state.distanceMi / (elapsedSec / 3600)) : 0;
+
+  // Build speed trace SVG
+  const svgW = 800, svgH = 200;
+  let speedPath = '';
+  let targetLine = '';
+  if (state.samples.length > 1) {
+    const maxTime = (state.samples[state.samples.length-1].t - state.startedAtMs) / 1000;
+    const maxSpd = Math.max(state.peakMph, state.classSpeed + 20);
+    const targetY = svgH - (state.classSpeed / maxSpd) * svgH;
+    targetLine = '<line x1="0" y1="' + targetY + '" x2="' + svgW + '" y2="' + targetY + '" stroke="#e31937" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.7"/>';
+    state.samples.forEach((s, i) => {
+      if (s.speed_ms === null) return;
+      const x = ((s.t - state.startedAtMs) / 1000 / maxTime) * svgW;
+      const y = svgH - ((s.speed_ms * MS_TO_MPH) / maxSpd) * svgH;
+      speedPath += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+    });
+  }
+
+  const splitsHtml = state.splits.filter(s => s.actual_sec !== null).map(s => {
+    const color = Math.abs(s.delta_sec) < 0.15 ? '#00ff66' : s.delta_sec < 0 ? '#ffaa00' : '#00c8ff';
+    return '<tr><td>' + s.mi.toFixed(2) + '</td><td>' + s.type + '</td><td>' + s.target_sec.toFixed(3) + '</td><td>' + s.actual_sec.toFixed(3) + '</td><td style="color:' + color + '">' + (s.delta_sec >= 0 ? '+' : '') + s.delta_sec.toFixed(3) + '</td></tr>';
+  }).join('');
+
+  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>915 Race Report</title>' +
+    '<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,700;0,900;1,700;1,900&family=Oswald:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">' +
+    '<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#000;color:#fff;font-family:"JetBrains Mono","SF Mono",monospace;padding:40px;max-width:900px;margin:0 auto}' +
+    '.hdr{text-align:center;padding:20px 0;border-bottom:3px solid #e31937;margin-bottom:30px}' +
+    '.hdr .logo-row{display:flex;justify-content:center;align-items:center;gap:12px;margin-bottom:8px}' +
+    '.hdr h1{font-family:"Barlow Condensed",Impact,sans-serif;font-style:italic;font-size:36px;font-weight:900;display:flex;align-items:baseline;justify-content:center;gap:4px}' +
+    '.hdr h1 .race-w{color:#fff}.hdr h1 .ctrl-w{color:#e31937}' +
+    '.hdr .sub{font-size:12px;color:#e31937;letter-spacing:0.2em;text-transform:uppercase;margin-top:4px}' +
+    '.exp{background:repeating-linear-gradient(135deg,#4a0a12 0px,#4a0a12 8px,#0a0a0a 8px,#0a0a0a 16px);padding:6px;text-align:center;font-size:9px;letter-spacing:0.25em;color:#e31937;margin-bottom:30px}' +
+    '.section{margin:24px 0 12px;font-size:11px;letter-spacing:0.15em;color:#e31937;text-transform:uppercase;font-weight:700}' +
+    '.hero{background:#0a0a0a;border:1px solid #333;border-radius:12px;padding:30px;text-align:center;margin-bottom:24px}' +
+    '.hero .delta{font-family:"Barlow Condensed",Impact,sans-serif;font-style:italic;font-size:72px;font-weight:900}' +
+    '.hero .verdict{font-size:16px;color:#e31937;letter-spacing:0.1em;margin-top:8px}' +
+    '.grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#222;margin-bottom:24px}' +
+    '.grid .cell{background:#0a0a0a;padding:12px;text-align:center}.grid .label{font-size:9px;color:#7a7a7a;letter-spacing:0.15em;text-transform:uppercase}.grid .val{font-size:22px;font-weight:700;margin-top:4px}' +
+    'svg{width:100%;background:#050505;border:1px solid #222;border-radius:8px;margin:12px 0}' +
+    'table{width:100%;border-collapse:collapse;font-size:11px;margin:12px 0}th{text-align:left;padding:8px;border-bottom:2px solid #333;color:#7a7a7a;letter-spacing:0.1em;text-transform:uppercase;font-size:9px}td{padding:6px 8px;border-bottom:1px solid #1a1a1a}' +
+    '.footer{margin-top:40px;padding-top:20px;border-top:1px solid #222;text-align:center;font-size:10px;color:#555}</style></head><body>' +
+    '<div class="hdr"><div class="logo-row"><svg width="44" height="38" viewBox="0 0 40 35" fill="none"><path d="M8 2C8 2 14 2 20 2C26 2 32 5 32 12C32 17 29 20 25 21L35 33H28L19 21H15V33H8V2Z" fill="#e31937"/><path d="M15 8V16H19C22 16 25 14.5 25 12C25 9.5 22 8 19 8H15Z" fill="#000"/><circle cx="35" cy="31" r="3" fill="#e31937"/></svg><h1><span class="race-w">RACE</span><span class="ctrl-w">CONTROL</span></h1></div><div class="sub">Zeitler / Wolfe Racing &middot; 915 Industries &middot; Race Report</div></div>' +
+    '<div class="exp">EXPERIMENTAL &middot; NOT FOR PUBLIC RELEASE &middot; v3.0</div>' +
+    '<div class="hero"><div class="label" style="font-size:10px;color:#7a7a7a;letter-spacing:0.2em;text-transform:uppercase">FINAL TIME DELTA</div>' +
+    '<div class="delta">' + fmtDelta(finalDelta) + 's</div>' +
+    '<div class="verdict">' + document.getElementById('finalVerdict').textContent + '</div></div>' +
+    '<div class="grid">' +
+    '<div class="cell"><div class="label">Race</div><div class="val" style="font-size:14px">' + r.name + '</div></div>' +
+    '<div class="cell"><div class="label">Class</div><div class="val">' + state.classSpeed + ' mph</div></div>' +
+    '<div class="cell"><div class="label">Elapsed</div><div class="val">' + fmtTime(elapsedSec) + '</div></div>' +
+    '<div class="cell"><div class="label">Perfect Time</div><div class="val">' + fmtTime(perfectSec) + '</div></div>' +
+    '<div class="cell"><div class="label">Avg Speed</div><div class="val">' + avgMph.toFixed(2) + '</div></div>' +
+    '<div class="cell"><div class="label">Peak Speed</div><div class="val">' + state.peakMph.toFixed(1) + '</div></div>' +
+    '<div class="cell"><div class="label">Peak Lat G</div><div class="val">' + state.peakGLat.toFixed(2) + '</div></div>' +
+    '<div class="cell"><div class="label">Peak Long G</div><div class="val">' + state.peakGLong.toFixed(2) + '</div></div>' +
+    '</div>' +
+    '<div class="section">Speed Trace</div>' +
+    '<svg viewBox="0 0 ' + svgW + ' ' + svgH + '" preserveAspectRatio="none">' +
+    '<rect width="' + svgW + '" height="' + svgH + '" fill="#050505"/>' +
+    targetLine +
+    '<path d="' + speedPath + '" fill="none" stroke="#00ff66" stroke-width="1.5"/>' +
+    '</svg>' +
+    '<div style="font-size:10px;color:#555;text-align:right">Red dashed = class target | Green = actual speed</div>' +
+    '<div class="section">Splits</div>' +
+    '<table><thead><tr><th>Mile</th><th>Type</th><th>Target (s)</th><th>Actual (s)</th><th>Delta (s)</th></tr></thead><tbody>' + splitsHtml + '</tbody></table>' +
+    '<div class="footer">Generated by 915 Race Control v3.0 &middot; 915 Industries &middot; Data &gt; Opinions &middot; ' + new Date().toISOString().slice(0,10) + '</div>' +
+    '</body></html>';
+  downloadBlob(new Blob([html], { type: 'text/html' }), fileTag() + '-report.html');
+}
+
+/* =============== COORDINATE CAPTURE =============== */
+function captureHere(which) {
+  if (!state.race) { alert('Select a race first.'); return; }
+  if (!state.lastPos) { alert('No GPS fix yet. Wait a moment.'); return; }
+  if (state.lastPos.accuracy > 30) {
+    if (!confirm('GPS accuracy is \u00b1' + state.lastPos.accuracy.toFixed(0) + 'm. Capture anyway?\n\nBetter to wait for under \u00b110m (green dot).')) return;
+  }
+  setCustomCoord(state.race, which, { lat: state.lastPos.lat, lng: state.lastPos.lng });
+  renderSetup();
+}
+
+let modalTarget = null;
+function openModal(which) {
+  if (!state.race) { alert('Select a race first.'); return; }
+  modalTarget = which;
+  document.getElementById('modalTitle').textContent = which === 'start' ? 'Enter Start Line Coordinates' : 'Enter Finish Line Coordinates';
+  const coord = which === 'start' ? effectiveCoords(state.race).start : effectiveCoords(state.race).finish;
+  document.getElementById('modalLat').value = coord.lat.toFixed(6);
+  document.getElementById('modalLng').value = coord.lng.toFixed(6);
+  document.getElementById('coordModal').classList.add('open');
+  setTimeout(() => document.getElementById('modalLat').focus(), 50);
+}
+function closeModal() { document.getElementById('coordModal').classList.remove('open'); modalTarget = null; }
+
+function resetAll() {
+  state.race = null; state.classSpeed = null; state.armedStartUtcMs = null;
+  state.raceActive = false; state.startedAtMs = null;
+  state.samples = []; state.motionSamples = [];
+  state.lastPos = null; state.distanceMi = 0; state.peakMph = 0;
+  state.peakGLat = 0; state.peakGLong = 0;
+  state.splits = []; state.nextSplitIdx = 0; state.sprintMode = false;
+  clearInterval(state.raceTicker);
+  clearInterval(prestageTimer); prestageTimer = null;
+  document.getElementById('disarmBtn').style.display = 'none';
+  document.getElementById('sprintBanner').classList.add('hidden');
+  document.getElementById('gPadContainer').classList.remove('active');
+  renderSetup();
+  show('setup');
+}
+
+/* =============== WIRING =============== */
+document.getElementById('toPrestage').onclick = enterPrestage;
+document.getElementById('backToSetup').onclick = () => { clearInterval(prestageTimer); prestageTimer = null; state.armedStartUtcMs = null; show('setup'); };
+document.getElementById('disarmBtn').onclick = () => { state.armedStartUtcMs = null; document.getElementById('disarmBtn').style.display = 'none'; renderStartPicker(); };
+document.getElementById('markFinish').onclick = () => finishRun('manual');
+document.getElementById('stopRun').onclick = () => { if (confirm('Abort the run? Data will be saved.')) finishRun('abort'); };
+document.getElementById('exportGpsCsv').onclick = exportGpsCsv;
+document.getElementById('exportMotionCsv').onclick = exportMotionCsv;
+document.getElementById('exportGpx').onclick = exportGpx;
+document.getElementById('exportJson').onclick = exportJson;
+document.getElementById('exportReport').onclick = exportReport;
+document.getElementById('newRun').onclick = resetAll;
+document.getElementById('captureStart').onclick = () => captureHere('start');
+document.getElementById('captureFinish').onclick = () => captureHere('finish');
+document.getElementById('editStart').onclick = () => openModal('start');
+document.getElementById('editFinish').onclick = () => openModal('finish');
+document.getElementById('modalCancel').onclick = closeModal;
+document.getElementById('modalSave').onclick = () => {
+  const lat = parseFloat(document.getElementById('modalLat').value.trim());
+  const lng = parseFloat(document.getElementById('modalLng').value.trim());
+  if (isNaN(lat) || lat < -90 || lat > 90) { alert('Latitude must be -90 to 90.'); return; }
+  if (isNaN(lng) || lng < -180 || lng > 180) { alert('Longitude must be -180 to 180.'); return; }
+  setCustomCoord(state.race, modalTarget, { lat, lng });
+  closeModal(); renderSetup();
+};
+document.getElementById('modalLat').addEventListener('input', (e) => {
+  const v = e.target.value;
+  if (v.includes(',')) {
+    const parts = v.split(',').map(s => s.trim());
+    if (parts.length === 2) { e.target.value = parts[0]; document.getElementById('modalLng').value = parts[1]; }
+  }
+});
+document.getElementById('resetCoords').onclick = () => {
+  if (!state.race) return;
+  if (confirm('Reset coordinates to default for this race?')) { clearCustomCoords(state.race); renderSetup(); }
+};
+document.getElementById('coordModal').addEventListener('click', (e) => { if (e.target.id === 'coordModal') closeModal(); });
+document.getElementById('reqMotion').onclick = requestMotionPermission;
+document.getElementById('reqAudio').onclick = enableSpeech;
+
+/* =============== INIT =============== */
+loadCustomCoords();
+renderSetup();
+startGps();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && state.raceActive) requestWakeLock();
+});
+</script>
+</body>
+</html>
