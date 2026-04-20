@@ -480,6 +480,71 @@
   .net-badge.mid { color: #ffaa00; border-color: #3a2a0a; }
   .net-badge.off { color: #ff3a3a; border-color: #3a0a0a; }
 
+  /* ==================== MAP OVERLAY ==================== */
+  .map-overlay {
+    position: fixed; inset: 0; z-index: 500;
+    background: #000; color: var(--text);
+    display: none; flex-direction: column;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .map-overlay.active { display: flex; }
+  .map-hdr {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px;
+    background: linear-gradient(180deg, #0d0d0d 0%, #000 100%);
+    border-bottom: 2px solid var(--race-red);
+    flex-shrink: 0;
+  }
+  .map-title {
+    font-family: var(--block); font-weight: 700; letter-spacing: 2px;
+    color: var(--race-red); font-size: 15px;
+  }
+  .map-close {
+    background: var(--race-red); color: #000; border: none;
+    padding: 8px 16px; font-family: var(--block); font-weight: 700;
+    letter-spacing: 2px; font-size: 12px; cursor: pointer; border-radius: 4px;
+  }
+  .map-stats {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+    padding: 8px 10px; background: #080808; border-bottom: 1px solid var(--edge);
+    flex-shrink: 0;
+  }
+  .map-stat { text-align: center; padding: 4px; }
+  .map-stat .label {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 1px;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .map-stat .val {
+    font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--text);
+    margin-top: 2px;
+  }
+  .map-body {
+    flex: 1; min-height: 0; background: #020202; overflow: hidden;
+  }
+  #mapSvg { width: 100%; height: 100%; display: block; }
+  .map-legend {
+    display: flex; flex-wrap: wrap; gap: 10px 16px; padding: 8px 12px;
+    background: #0a0a0a; border-top: 1px solid var(--edge);
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    letter-spacing: 1px; text-transform: uppercase; flex-shrink: 0;
+    justify-content: center;
+  }
+  .map-legend .lg { display: inline-flex; align-items: center; gap: 6px; }
+  .map-legend .dot {
+    width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+  }
+  .map-legend .dot.green { background: #00ff66; }
+  .map-legend .dot.red   { background: #ff1a1a; box-shadow: 0 0 6px #ff1a1a; }
+  .map-legend .dot.gray  { background: #666; }
+  .map-legend .dot.amber { background: #ffaa00; }
+  .map-legend .dot.checker {
+    background: conic-gradient(#fff 0deg 90deg, #000 90deg 180deg, #fff 180deg 270deg, #000 270deg 360deg);
+    border: 1px solid #444;
+  }
+  .map-legend .line-seg {
+    width: 18px; height: 2px; background: #00c8ff; display: inline-block;
+  }
+
   /* ==================== PIN GATE ==================== */
   #pinGate {
     position: fixed; inset: 0; z-index: 99999;
@@ -844,6 +909,16 @@
     <div class="section-label">Target Speed Class (mph)</div>
     <div class="class-row" id="classRow"></div>
 
+    <!-- Independent / Custom race editor: only visible when Custom is selected. -->
+    <div id="customRacePanel" style="display:none; margin:12px 0; padding:12px; border:1px solid var(--race-red); background:rgba(227,25,55,0.06); border-radius:8px;">
+      <div style="font-family:var(--block); font-weight:700; color:var(--race-red); letter-spacing:2px; font-size:13px; margin-bottom:8px;">INDEPENDENT EVENT</div>
+      <label style="display:block; font-family:var(--mono); font-size:10px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-top:8px;">Event Name</label>
+      <input id="customName" type="text" placeholder="e.g. BMIRC Shootout" style="width:100%;box-sizing:border-box;padding:10px 12px;font-family:var(--mono);font-size:14px;background:#111;color:var(--text);border:1px solid var(--edge-2);border-radius:6px;margin-top:4px;">
+      <label style="display:block; font-family:var(--mono); font-size:10px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-top:10px;">Total Distance (miles)</label>
+      <input id="customDistance" type="number" step="0.01" min="0.5" max="500" placeholder="e.g. 25.50" style="width:100%;box-sizing:border-box;padding:10px 12px;font-family:var(--mono);font-size:14px;background:#111;color:var(--text);border:1px solid var(--edge-2);border-radius:6px;margin-top:4px;">
+      <div style="font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:10px; line-height:1.4;">Start and finish coordinates are set below using <b>Capture Here</b> (live GPS) or <b>Edit</b> (manual lat/lng).</div>
+    </div>
+
     <div class="section-label">Start / Finish Coordinates</div>
     <div class="coord-card" id="startCard">
       <div class="coord-head">
@@ -870,9 +945,11 @@
     <button class="coord-btn reset" id="resetCoords">Reset to Default Coordinates</button>
 
     <div class="section-label">Device Label</div>
-    <div style="display:flex;gap:8px;margin-bottom:12px;">
-      <button class="sensor-btn" onclick="setDeviceLabel('Tim - Windshield')" id="labelTim">Tim - Windshield</button>
-      <button class="sensor-btn" onclick="setDeviceLabel('Josh - Navigator')" id="labelJosh">Josh - Navigator</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+      <button class="sensor-btn" onclick="setDeviceLabel('Tim - Windshield')" id="labelTim" data-devlabel="Tim - Windshield">Tim - Windshield</button>
+      <button class="sensor-btn" onclick="setDeviceLabel('Josh - Navigator')" id="labelJosh" data-devlabel="Josh - Navigator">Josh - Navigator</button>
+      <button class="sensor-btn" onclick="setDeviceLabel('Datalogger 3')" id="labelDL3" data-devlabel="Datalogger 3">Datalogger 3</button>
+      <button class="sensor-btn" onclick="setDeviceLabel('Datalogger 4')" id="labelDL4" data-devlabel="Datalogger 4">Datalogger 4</button>
     </div>
     <input type="text" id="deviceLabel" placeholder="Custom label (e.g. Tim - Windshield)" value="" style="width:100%;box-sizing:border-box;padding:10px 12px;font-family:var(--mono);font-size:14px;background:#111;color:var(--text);border:1px solid var(--edge-2);border-radius:6px;margin-bottom:12px;" onchange="state.deviceLabel=this.value;try{localStorage.setItem('orr_device_label',this.value);}catch(e){}">
 
@@ -1032,8 +1109,53 @@
     <div class="cn-list" id="cnList"></div>
   </div>
   <div class="race-controls">
+    <button id="openMap">Map</button>
     <button id="markFinish">Manual Finish</button>
     <button id="stopRun" class="stop">Abort</button>
+  </div>
+</div>
+
+<!-- ==================== MAP OVERLAY (offline tracking view) ==================== -->
+<div id="mapOverlay" class="map-overlay">
+  <div class="map-hdr">
+    <div class="map-title">TRACK MAP <span id="mapRaceName" style="color:var(--muted);font-weight:400;letter-spacing:1px;margin-left:8px;"></span></div>
+    <button id="closeMap" class="map-close">CLOSE</button>
+  </div>
+  <div class="map-stats">
+    <div class="map-stat"><div class="label">Done</div><div class="val" id="mapDone">&mdash;</div></div>
+    <div class="map-stat"><div class="label">To Go</div><div class="val" id="mapToGo">&mdash;</div></div>
+    <div class="map-stat"><div class="label">Delta</div><div class="val" id="mapDelta">&mdash;</div></div>
+    <div class="map-stat"><div class="label">Next Hazard</div><div class="val" id="mapNextHazard">&mdash;</div></div>
+  </div>
+  <div class="map-body">
+    <svg id="mapSvg" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet"
+         xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="mapGrid" width="50" height="50" patternUnits="userSpaceOnUse">
+          <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#161616" stroke-width="1"/>
+        </pattern>
+        <radialGradient id="carGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#ff1a1a" stop-opacity="0.9"/>
+          <stop offset="100%" stop-color="#ff1a1a" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <rect width="1000" height="700" fill="#050505"/>
+      <rect width="1000" height="700" fill="url(#mapGrid)"/>
+      <g id="mapLayerRoute"></g>
+      <g id="mapLayerNotes"></g>
+      <g id="mapLayerSplits"></g>
+      <g id="mapLayerTrail"></g>
+      <g id="mapLayerMarkers"></g>
+      <g id="mapLayerCar"></g>
+    </svg>
+  </div>
+  <div class="map-legend">
+    <span class="lg"><span class="dot green"></span>Start</span>
+    <span class="lg"><span class="dot red"></span>You</span>
+    <span class="lg"><span class="dot gray"></span>Target</span>
+    <span class="lg"><span class="dot checker"></span>Finish</span>
+    <span class="lg"><span class="dot amber"></span>Hazard</span>
+    <span class="lg"><span class="line-seg"></span>Your track</span>
   </div>
 </div>
 
@@ -1088,12 +1210,103 @@
 
 <script>
 /* =============== CONSTANTS =============== */
+// ============================================================================
+// ROUTE POLYLINES — road-centerline waypoints for each course.
+// ============================================================================
+// The FIRST and LAST waypoint of each route are the official race start/finish
+// coordinates from the source app data (also reflected in RACES[key].start /
+// RACES[key].finish below — they match exactly). All waypoints in between are
+// approximations that follow the general shape of the actual highway so the
+// map shows sweeps and bends instead of a straight diagonal.
+//
+// These are NOT survey-grade. For true road-centerline accuracy, do a recon
+// drive with the app logging, export the .gpx, and replace the arrays below
+// with the real fix-by-fix track. The breadcrumb layer on the map always uses
+// real GPS data, so during an actual run the cyan line is accurate regardless.
+// ============================================================================
+
+// US-285 — Fort Stockton to Sanderson, south leg. 21 points.
+const ROUTE_BBORR_SOUTH = [
+  { lat: 30.8500, lng: -102.8800 }, // [OFFICIAL] Start — Ft Stockton (I-10 / US-285 split)
+  { lat: 30.8200, lng: -102.8720 },
+  { lat: 30.7850, lng: -102.8580 },
+  { lat: 30.7500, lng: -102.8420 },
+  { lat: 30.7150, lng: -102.8250 },
+  { lat: 30.6800, lng: -102.8080 }, // Longfellow vicinity
+  { lat: 30.6450, lng: -102.7900 },
+  { lat: 30.6100, lng: -102.7700 },
+  { lat: 30.5750, lng: -102.7470 }, // road begins bending southeast
+  { lat: 30.5400, lng: -102.7220 },
+  { lat: 30.5050, lng: -102.6930 },
+  { lat: 30.4700, lng: -102.6610 }, // Escondido Draw area
+  { lat: 30.4350, lng: -102.6280 },
+  { lat: 30.4000, lng: -102.5930 },
+  { lat: 30.3650, lng: -102.5600 },
+  { lat: 30.3300, lng: -102.5260 }, // Pecos County line region
+  { lat: 30.2900, lng: -102.4900 },
+  { lat: 30.2500, lng: -102.4550 },
+  { lat: 30.2100, lng: -102.4280 }, // Sanderson 10 mi sign region
+  { lat: 30.1750, lng: -102.4080 },
+  { lat: 30.1435, lng: -102.3940 }  // [OFFICIAL] Finish — Sanderson
+];
+// North leg is the same highway driven the other direction; reverse the polyline.
+const ROUTE_BBORR_NORTH = ROUTE_BBORR_SOUTH.slice().reverse();
+
+// Nevada SR-318 — Lund area south to Hiko. 17 points.
+const ROUTE_SR318 = [
+  { lat: 38.8600, lng: -115.0200 }, // [OFFICIAL] Start — Lund / Preston area
+  { lat: 38.8050, lng: -115.0260 },
+  { lat: 38.7400, lng: -115.0370 },
+  { lat: 38.6700, lng: -115.0480 },
+  { lat: 38.6000, lng: -115.0600 },
+  { lat: 38.5300, lng: -115.0700 }, // Sunnyside area
+  { lat: 38.4500, lng: -115.0730 },
+  { lat: 38.3600, lng: -115.0720 },
+  { lat: 38.2700, lng: -115.0780 },
+  { lat: 38.1800, lng: -115.0930 },
+  { lat: 38.1000, lng: -115.1180 }, // Currant area
+  { lat: 38.0100, lng: -115.1500 },
+  { lat: 37.9200, lng: -115.1800 },
+  { lat: 37.8300, lng: -115.2000 },
+  { lat: 37.7400, lng: -115.2130 },
+  { lat: 37.6700, lng: -115.2200 },
+  { lat: 37.6000, lng: -115.2200 }  // [OFFICIAL] Finish — Hiko area
+];
+
 const RACES = {
-  bborr_south: { name: 'BBORR Leg 1 (Ft Stockton to Sanderson)', detail: '59.00 mi | US 285 South', distance_mi: 59.00, start: { lat: 30.8500, lng: -102.8800 }, finish: { lat: 30.1435, lng: -102.3940 }, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,165], tech_above_class: 15, min_below_class: 30 },
-  bborr_north: { name: 'BBORR Leg 2 (Sanderson to Ft Stockton)', detail: '59.00 mi | US 285 North', distance_mi: 59.00, start: { lat: 30.1435, lng: -102.3940 }, finish: { lat: 30.8500, lng: -102.8800 }, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,165], tech_above_class: 15, min_below_class: 30 },
-  sscc: { name: 'Silver State Classic Challenge', detail: '90.00 mi | Nevada SR-318', distance_mi: 90.00, start: { lat: 38.8600, lng: -115.0200 }, finish: { lat: 37.6000, lng: -115.2200 }, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,170,180], tech_above_class: 15, min_below_class: 30 },
-  norc: { name: 'Nevada Open Road Challenge', detail: '90.00 mi | Nevada SR-318 (Down & Back)', distance_mi: 90.00, start: { lat: 38.8600, lng: -115.0200 }, finish: { lat: 38.8600, lng: -115.0200 }, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,170,180], tech_above_class: 15, min_below_class: 30 }
+  bborr_south: { name: 'BBORR Leg 1 (Ft Stockton to Sanderson)', detail: '59.00 mi | US 285 South', distance_mi: 59.00, start: { lat: 30.8500, lng: -102.8800 }, finish: { lat: 30.1435, lng: -102.3940 }, route: ROUTE_BBORR_SOUTH, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,165], tech_above_class: 15, min_below_class: 30 },
+  bborr_north: { name: 'BBORR Leg 2 (Sanderson to Ft Stockton)', detail: '59.00 mi | US 285 North', distance_mi: 59.00, start: { lat: 30.1435, lng: -102.3940 }, finish: { lat: 30.8500, lng: -102.8800 }, route: ROUTE_BBORR_NORTH, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,165], tech_above_class: 15, min_below_class: 30 },
+  sscc: { name: 'Silver State Classic Challenge', detail: '90.00 mi | Nevada SR-318', distance_mi: 90.00, start: { lat: 38.8600, lng: -115.0200 }, finish: { lat: 37.6000, lng: -115.2200 }, route: ROUTE_SR318, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,170,180], tech_above_class: 15, min_below_class: 30 },
+  norc: { name: 'Nevada Open Road Challenge', detail: '90.00 mi | Nevada SR-318 (Down & Back)', distance_mi: 90.00, start: { lat: 38.8600, lng: -115.0200 }, finish: { lat: 38.8600, lng: -115.0200 }, route: ROUTE_SR318, downAndBack: true, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,170,180], tech_above_class: 15, min_below_class: 30 },
+  // Independent / custom event — user defines everything. Persisted to localStorage.
+  custom: { name: 'Independent Event', detail: 'Custom — set coords below', distance_mi: 10.00, start: { lat: 0, lng: 0 }, finish: { lat: 0, lng: 0 }, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,165,170,180], tech_above_class: 15, min_below_class: 30 }
 };
+const CUSTOM_RACE_STORAGE_KEY = 'orr_custom_race_v1';
+function loadCustomRaceDef() {
+  try {
+    const raw = localStorage.getItem(CUSTOM_RACE_STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (saved && typeof saved === 'object') {
+      // Shallow-merge into the default custom entry, preserving any missing fields.
+      if (typeof saved.name === 'string' && saved.name.trim()) RACES.custom.name = saved.name.trim();
+      if (typeof saved.distance_mi === 'number' && saved.distance_mi > 0 && saved.distance_mi < 500) RACES.custom.distance_mi = saved.distance_mi;
+      if (saved.start && typeof saved.start.lat === 'number' && typeof saved.start.lng === 'number') RACES.custom.start = { lat: saved.start.lat, lng: saved.start.lng };
+      if (saved.finish && typeof saved.finish.lat === 'number' && typeof saved.finish.lng === 'number') RACES.custom.finish = { lat: saved.finish.lat, lng: saved.finish.lng };
+      RACES.custom.detail = saved.distance_mi ? saved.distance_mi.toFixed(2) + ' mi · Independent' : 'Custom — set coords below';
+    }
+  } catch (e) {}
+}
+function saveCustomRaceDef() {
+  try {
+    localStorage.setItem(CUSTOM_RACE_STORAGE_KEY, JSON.stringify({
+      name: RACES.custom.name,
+      distance_mi: RACES.custom.distance_mi,
+      start: RACES.custom.start,
+      finish: RACES.custom.finish
+    }));
+  } catch (e) {}
+}
 
 /* =============== COURSE NOTES DATA =============== */
 const COURSE_NOTES = {
@@ -1346,6 +1559,22 @@ function effectiveCoords(raceKey) {
 function setCustomCoord(raceKey, which, coord) {
   if (!state.customCoords[raceKey]) state.customCoords[raceKey] = {};
   state.customCoords[raceKey][which] = coord;
+  // Out-and-back races have default start === default finish. Mirror any refinement
+  // so capturing the start doesn't leave the finish trigger pointing at the old default.
+  const r = RACES[raceKey];
+  if (r && r.start && r.finish &&
+      r.start.lat === r.finish.lat && r.start.lng === r.finish.lng) {
+    state.customCoords[raceKey][which === 'start' ? 'finish' : 'start'] = coord;
+  }
+  // For the Independent event, also mirror into the persistent race definition
+  // so a fresh install (or a team-device swap) keeps the captured points.
+  if (raceKey === 'custom' && RACES.custom) {
+    RACES.custom[which] = { lat: coord.lat, lng: coord.lng };
+    if (r && r.start && r.finish && r.start.lat === r.finish.lat && r.start.lng === r.finish.lng) {
+      RACES.custom[which === 'start' ? 'finish' : 'start'] = { lat: coord.lat, lng: coord.lng };
+    }
+    saveCustomRaceDef();
+  }
   saveCustomCoords();
 }
 function clearCustomCoords(raceKey) { delete state.customCoords[raceKey]; saveCustomCoords(); }
@@ -1386,6 +1615,19 @@ function renderSetup() {
       };
       classRow.appendChild(btn);
     });
+  }
+  // Show the Independent-event editor only for the custom race key.
+  const customPanel = document.getElementById('customRacePanel');
+  if (customPanel) {
+    if (state.race === 'custom') {
+      customPanel.style.display = 'block';
+      const nameInput = document.getElementById('customName');
+      const distInput = document.getElementById('customDistance');
+      if (nameInput && document.activeElement !== nameInput) nameInput.value = RACES.custom.name;
+      if (distInput && document.activeElement !== distInput) distInput.value = RACES.custom.distance_mi.toFixed(2);
+    } else {
+      customPanel.style.display = 'none';
+    }
   }
   renderCoordCards();
   if (state.race && state.classSpeed) {
@@ -1612,8 +1854,11 @@ function setDeviceLabel(label) {
   state.deviceLabel = label;
   try { localStorage.setItem('orr_device_label', label); } catch(e) {}
   document.getElementById('deviceLabel').value = label;
-  document.getElementById('labelTim').classList.toggle('enabled', label === 'Tim - Windshield');
-  document.getElementById('labelJosh').classList.toggle('enabled', label === 'Josh - Navigator');
+  // Highlight whichever preset button matches, if any. Works for any number
+  // of presets — just add another <button data-devlabel="..."> in the HTML.
+  document.querySelectorAll('[data-devlabel]').forEach(btn => {
+    btn.classList.toggle('enabled', btn.getAttribute('data-devlabel') === label);
+  });
   speak(pick([label + '. Locked in.', label + ' device. Got it.', label + '. I know who you are now.']), true);
 }
 function onVoiceChange(name) {
@@ -1859,6 +2104,301 @@ function checkCourseNotes(distMi) {
   if (changed) renderCourseNotes();
 }
 
+/* =============== MAP OVERLAY (offline tracking view) ===============
+   Renders an SVG map of the course with the car's GPS breadcrumb trail,
+   start / finish markers, upcoming hazards, split checkpoints, and the
+   current + target positions. No external tiles — works fully offline. */
+const mapView = {
+  active: false,
+  bounds: null,       // { minLat, maxLat, minLng, maxLng }
+  lastTrailN: 0,      // how many samples we've already drawn
+  trailPath: ''       // accumulated SVG path 'd' for breadcrumb
+};
+
+// Returns the effective route for display — handles down-and-back by mirroring
+// the outbound polyline back to start, so the target ghost and course-note placement
+// track the actual car path on NORC-style courses.
+function effectiveRoute(raceKey) {
+  const r = RACES[raceKey];
+  if (!r || !r.route || r.route.length < 2) return null;
+  if (!r.downAndBack) return r.route;
+  const back = r.route.slice(0, -1).reverse(); // avoid doubling the turnaround point
+  return r.route.concat(back);
+}
+
+// Pre-compute cumulative haversine distance (meters) along a polyline so
+// interpolateRoute can look up a position at any fraction-of-total in O(log N).
+function routeCumDist(route) {
+  const cum = [0];
+  for (let i = 1; i < route.length; i++) {
+    cum.push(cum[i - 1] + haversine(route[i - 1], route[i]));
+  }
+  return cum;
+}
+
+// Given a route polyline and a fraction (0..1) of the total route length,
+// return the interpolated lat/lng point along the path.
+function interpolateRoute(route, frac) {
+  if (!route || route.length < 2) return null;
+  if (frac <= 0) return { lat: route[0].lat, lng: route[0].lng };
+  if (frac >= 1) return { lat: route[route.length - 1].lat, lng: route[route.length - 1].lng };
+  const cum = routeCumDist(route);
+  const total = cum[cum.length - 1];
+  const target = frac * total;
+  // Linear scan — route polylines here are small (<30 points). Binary search
+  // would be marginal and add bug surface.
+  for (let i = 1; i < cum.length; i++) {
+    if (cum[i] >= target) {
+      const segT = (target - cum[i - 1]) / (cum[i] - cum[i - 1]);
+      const a = route[i - 1], b = route[i];
+      return {
+        lat: a.lat + (b.lat - a.lat) * segT,
+        lng: a.lng + (b.lng - a.lng) * segT
+      };
+    }
+  }
+  return { lat: route[route.length - 1].lat, lng: route[route.length - 1].lng };
+}
+
+function computeMapBounds() {
+  // Union of start, finish, every route waypoint, every course note (interpolated
+  // along the polyline), the current position, and breadcrumb extremes. Keeps the
+  // whole course on-screen.
+  const r = RACES[state.race];
+  if (!r) return null;
+  const coords = effectiveCoords(state.race);
+  const route = effectiveRoute(state.race);
+  let lats = [coords.start.lat, coords.finish.lat];
+  let lngs = [coords.start.lng, coords.finish.lng];
+  if (route) {
+    route.forEach(p => { lats.push(p.lat); lngs.push(p.lng); });
+  }
+  if (state.lastPos) { lats.push(state.lastPos.lat); lngs.push(state.lastPos.lng); }
+  // Sample breadcrumb extremes so the trail stays in view even if the car strayed.
+  if (state.samples && state.samples.length) {
+    const step = Math.max(1, Math.floor(state.samples.length / 80));
+    for (let i = 0; i < state.samples.length; i += step) {
+      lats.push(state.samples[i].lat); lngs.push(state.samples[i].lng);
+    }
+  }
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+  // 8% padding so markers aren't on the edge.
+  const padLat = Math.max((maxLat - minLat) * 0.08, 0.0005);
+  const padLng = Math.max((maxLng - minLng) * 0.08, 0.0005);
+  return {
+    minLat: minLat - padLat, maxLat: maxLat + padLat,
+    minLng: minLng - padLng, maxLng: maxLng + padLng
+  };
+}
+
+function projectMap(lat, lng) {
+  const b = mapView.bounds;
+  if (!b) return { x: 500, y: 350 };
+  // Use an equirectangular projection corrected for the center latitude so distance
+  // at ~30°N (BBORR) and ~38°N (Nevada) doesn't skew horizontally. Good enough for
+  // courses under ~100 mi.
+  const w = 1000, h = 700;
+  const midLat = (b.minLat + b.maxLat) / 2;
+  const lngScale = Math.cos(midLat * Math.PI / 180);
+  const lngRange = (b.maxLng - b.minLng) * lngScale;
+  const latRange = (b.maxLat - b.minLat);
+  const ratio = w / h;
+  // Pick the dominant axis so we never stretch one dimension to overflow.
+  let scale;
+  if (lngRange / latRange > ratio) scale = w / lngRange;
+  else scale = h / latRange;
+  const cx = (b.minLng + b.maxLng) / 2;
+  const cy = (b.minLat + b.maxLat) / 2;
+  const x = w / 2 + (lng - cx) * lngScale * scale;
+  const y = h / 2 - (lat - cy) * scale;
+  return { x, y };
+}
+
+function renderMapStatic() {
+  mapView.bounds = computeMapBounds();
+  if (!mapView.bounds) return;
+  const r = RACES[state.race];
+  const coords = effectiveCoords(state.race);
+  const route = effectiveRoute(state.race);
+  const routeEl = document.getElementById('mapLayerRoute');
+  const notes = document.getElementById('mapLayerNotes');
+  const splits = document.getElementById('mapLayerSplits');
+  const markers = document.getElementById('mapLayerMarkers');
+
+  // --- Route polyline ---
+  // If we have a waypoint polyline for this race, draw it so the map shows the actual
+  // road shape (sweeps, bends). Otherwise fall back to a dashed straight line for
+  // custom races where no polyline is known.
+  const s = projectMap(coords.start.lat, coords.start.lng);
+  const f = projectMap(coords.finish.lat, coords.finish.lng);
+  if (route && route.length >= 2) {
+    let d = '';
+    route.forEach((pt, i) => {
+      const p = projectMap(pt.lat, pt.lng);
+      d += (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1) + ' ';
+    });
+    routeEl.innerHTML = '<path d="' + d + '" fill="none" stroke="#3a3a3a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>';
+  } else {
+    routeEl.innerHTML = '<line x1="' + s.x.toFixed(1) + '" y1="' + s.y.toFixed(1) +
+                        '" x2="' + f.x.toFixed(1) + '" y2="' + f.y.toFixed(1) +
+                        '" stroke="#2a2a2a" stroke-width="3" stroke-dasharray="6,4" />';
+  }
+
+  // --- Course notes along the route ---
+  let nHtml = '';
+  if (state.courseNotes && r.distance_mi > 0) {
+    state.courseNotes.forEach((n, i) => {
+      const frac = Math.max(0, Math.min(1, n.mi / r.distance_mi));
+      // Position along the polyline if we have one; otherwise along the straight line.
+      const latLng = route ? interpolateRoute(route, frac)
+                           : { lat: coords.start.lat + (coords.finish.lat - coords.start.lat) * frac,
+                               lng: coords.start.lng + (coords.finish.lng - coords.start.lng) * frac };
+      if (!latLng) return;
+      const p = projectMap(latLng.lat, latLng.lng);
+      const color = n.warn ? '#ffaa00' : '#555';
+      const radius = n.warn ? 4 : 2.5;
+      const alreadyPassed = (i < state.nextNoteIdx);
+      const opacity = alreadyPassed ? 0.3 : 1.0;
+      nHtml += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + radius +
+               '" fill="' + color + '" opacity="' + opacity + '"/>';
+    });
+  }
+  notes.innerHTML = nHtml;
+
+  // --- Split checkpoints ---
+  // Ticks perpendicular to the local route tangent at each split mile.
+  let splHtml = '';
+  if (state.splits && r.distance_mi > 0) {
+    state.splits.forEach(sp => {
+      const frac = Math.max(0, Math.min(1, sp.mi / r.distance_mi));
+      const latLng = route ? interpolateRoute(route, frac)
+                           : { lat: coords.start.lat + (coords.finish.lat - coords.start.lat) * frac,
+                               lng: coords.start.lng + (coords.finish.lng - coords.start.lng) * frac };
+      if (!latLng) return;
+      const center = projectMap(latLng.lat, latLng.lng);
+      // Local tangent: sample slightly ahead and behind for a perpendicular direction.
+      const eps = 0.002;
+      const ahead = route ? interpolateRoute(route, Math.min(frac + eps, 1))
+                          : projectMap(coords.finish.lat, coords.finish.lng);
+      const behind = route ? interpolateRoute(route, Math.max(frac - eps, 0))
+                           : projectMap(coords.start.lat, coords.start.lng);
+      const pA = route ? projectMap(ahead.lat, ahead.lng) : ahead;
+      const pB = route ? projectMap(behind.lat, behind.lng) : behind;
+      const dx = pA.x - pB.x, dy = pA.y - pB.y;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const nx = -dy / len, ny = dx / len;
+      let stroke = '#444';
+      if (sp.actual_sec !== null) {
+        if (Math.abs(sp.delta_sec) < 0.15) stroke = '#00ff66';
+        else if (sp.delta_sec < 0) stroke = '#ffaa00';
+        else stroke = '#00c8ff';
+      }
+      const halfLen = sp.type === 'sprint' ? 4 : 7;
+      splHtml += '<line x1="' + (center.x - nx * halfLen).toFixed(1) + '" y1="' + (center.y - ny * halfLen).toFixed(1) +
+                 '" x2="' + (center.x + nx * halfLen).toFixed(1) + '" y2="' + (center.y + ny * halfLen).toFixed(1) +
+                 '" stroke="' + stroke + '" stroke-width="2"/>';
+    });
+  }
+  splits.innerHTML = splHtml;
+
+  // --- Start and finish markers ---
+  let mHtml = '';
+  mHtml += '<circle cx="' + s.x.toFixed(1) + '" cy="' + s.y.toFixed(1) + '" r="7" fill="#00ff66" stroke="#000" stroke-width="2"/>';
+  mHtml += '<text x="' + (s.x + 10).toFixed(1) + '" y="' + (s.y - 8).toFixed(1) +
+           '" fill="#00ff66" font-family="Arial" font-size="13" font-weight="700">START</text>';
+  mHtml += '<rect x="' + (f.x - 7).toFixed(1) + '" y="' + (f.y - 7).toFixed(1) +
+           '" width="14" height="14" fill="#fff" stroke="#000" stroke-width="2"/>';
+  mHtml += '<rect x="' + (f.x - 7).toFixed(1) + '" y="' + (f.y - 7).toFixed(1) +
+           '" width="7"  height="7"  fill="#000"/>';
+  mHtml += '<rect x="' + (f.x).toFixed(1)     + '" y="' + (f.y).toFixed(1) +
+           '" width="7"  height="7"  fill="#000"/>';
+  mHtml += '<text x="' + (f.x + 10).toFixed(1) + '" y="' + (f.y - 8).toFixed(1) +
+           '" fill="#fff" font-family="Arial" font-size="13" font-weight="700">FINISH</text>';
+  markers.innerHTML = mHtml;
+
+  // Reset trail cache so the next updateMap() rebuilds from sample 0.
+  mapView.lastTrailN = 0;
+  mapView.trailPath = '';
+  document.getElementById('mapLayerTrail').innerHTML = '';
+}
+
+function updateMapLive() {
+  if (!mapView.active || !mapView.bounds) return;
+  // Append any new GPS samples to the breadcrumb path.
+  const samples = state.samples;
+  if (samples.length > mapView.lastTrailN) {
+    for (let i = mapView.lastTrailN; i < samples.length; i++) {
+      const p = projectMap(samples[i].lat, samples[i].lng);
+      mapView.trailPath += (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1) + ' ';
+    }
+    mapView.lastTrailN = samples.length;
+    document.getElementById('mapLayerTrail').innerHTML =
+      '<path d="' + mapView.trailPath + '" fill="none" stroke="#00c8ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>';
+  }
+  // Car position + glow + target-position ghost.
+  const r = RACES[state.race];
+  const coords = effectiveCoords(state.race);
+  const carLayer = document.getElementById('mapLayerCar');
+  let cHtml = '';
+  if (state.lastPos) {
+    const p = projectMap(state.lastPos.lat, state.lastPos.lng);
+    cHtml += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="26" fill="url(#carGlow)"/>';
+    cHtml += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="7" fill="#ff1a1a" stroke="#000" stroke-width="2"/>';
+  }
+  // Target ghost — where the car should be at class pace right now. Follow the route
+  // polyline so the ghost moves with the sweeps instead of cutting across corners.
+  if (state.startedAtMs && r && r.distance_mi > 0) {
+    const elapsedSec = (nowUtcMs() - state.startedAtMs) / 1000;
+    const perfectSec = (r.distance_mi / state.classSpeed) * 3600;
+    const frac = Math.max(0, Math.min(1, elapsedSec / perfectSec));
+    const route = effectiveRoute(state.race);
+    const latLng = route ? interpolateRoute(route, frac)
+                         : { lat: coords.start.lat + (coords.finish.lat - coords.start.lat) * frac,
+                             lng: coords.start.lng + (coords.finish.lng - coords.start.lng) * frac };
+    if (latLng) {
+      const tp = projectMap(latLng.lat, latLng.lng);
+      cHtml += '<circle cx="' + tp.x.toFixed(1) + '" cy="' + tp.y.toFixed(1) +
+               '" r="6" fill="none" stroke="#888" stroke-width="2" stroke-dasharray="3,2"/>';
+    }
+  }
+  carLayer.innerHTML = cHtml;
+  // Stats.
+  const distDone = state.distanceMi || 0;
+  const distToGo = r ? Math.max(r.distance_mi - distDone, 0) : 0;
+  document.getElementById('mapDone').textContent = distDone.toFixed(2) + ' mi';
+  document.getElementById('mapToGo').textContent = distToGo.toFixed(2) + ' mi';
+  // Delta from live tick calc.
+  if (state.startedAtMs && r) {
+    const elapsedSec = (nowUtcMs() - state.startedAtMs) / 1000;
+    const expected = (distDone / state.classSpeed) * 3600;
+    document.getElementById('mapDelta').textContent = fmtDelta(elapsedSec - expected);
+  }
+  // Next hazard.
+  const nextHaz = (state.courseNotes || []).slice(state.nextNoteIdx).find(n => n.warn);
+  if (nextHaz) {
+    const ahead = Math.max(0, nextHaz.mi - distDone).toFixed(2);
+    document.getElementById('mapNextHazard').textContent = ahead + ' mi · ' + nextHaz.warn;
+  } else {
+    document.getElementById('mapNextHazard').textContent = '\u2014';
+  }
+}
+
+function openMap() {
+  if (!state.race) return;
+  const rn = RACES[state.race] ? RACES[state.race].name.split('(')[0].trim() : '';
+  const nameEl = document.getElementById('mapRaceName');
+  if (nameEl) nameEl.textContent = rn;
+  mapView.active = true;
+  renderMapStatic();
+  updateMapLive();
+  document.getElementById('mapOverlay').classList.add('active');
+}
+function closeMap() {
+  mapView.active = false;
+  document.getElementById('mapOverlay').classList.remove('active');
+}
+
 /* =============== PRESTAGE =============== */
 let prestageTimer = null;
 function enterPrestage() {
@@ -1955,6 +2495,7 @@ function launchRace() {
     state.peakGLat = 0; state.peakGLong = 0;
     state.filteredGLat = 0; state.filteredGLong = 0;
     state.techAmberSpoken = false;
+    state.finalElapsedSec = null; state.finalAvgMph = null;
     state.altStart = null; state.altPeak = null; state.altMin = null;
     state.altLast = null; state.altGainM = 0; state.altLossM = 0;
     state.network.events = [];
@@ -2136,6 +2677,8 @@ function tickRace() {
 
   checkSplits(elapsedSec, state.distanceMi);
   checkCourseNotes(state.distanceMi);
+  // Map live update when the overlay is open (cheap when closed).
+  if (mapView.active) updateMapLive();
 
   // Sprint mode
   const distToFinish = r.distance_mi - state.distanceMi;
@@ -2164,9 +2707,13 @@ function finishRun(reason) {
   releaseWakeLock();
   const r = RACES[state.race];
   const elapsedSec = (nowUtcMs() - state.startedAtMs) / 1000;
+  // Freeze the final elapsed time at finish so exports run later use the real run duration
+  // instead of wall-clock-minus-start at export-button-press time.
+  state.finalElapsedSec = elapsedSec;
+  state.finalAvgMph = state.distanceMi > 0 ? (state.distanceMi / (elapsedSec / 3600)) : 0;
   const perfectSec = (r.distance_mi / state.classSpeed) * 3600;
   const finalDelta = elapsedSec - perfectSec;
-  const avgMph = state.distanceMi > 0 ? (state.distanceMi / (elapsedSec / 3600)) : 0;
+  const avgMph = state.finalAvgMph;
   document.getElementById('doneRaceInfo').textContent = state.classSpeed + ' CLASS';
   document.getElementById('finalDelta').textContent = reason === 'abort' ? '\u2014' : fmtDelta(finalDelta);
   let verdict;
@@ -2297,7 +2844,20 @@ function finishRun(reason) {
 
 /* =============== WAKE LOCK =============== */
 let wakeLock = null;
-async function requestWakeLock() { try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {} }
+async function requestWakeLock() {
+  // Don't orphan an existing lock — if we already hold a live one, leave it alone.
+  if (wakeLock && wakeLock.released === false) return;
+  try {
+    if ('wakeLock' in navigator) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      // Clear our reference when the system auto-releases (e.g. on screen lock) so the
+      // next visibilitychange can re-acquire cleanly.
+      if (wakeLock && typeof wakeLock.addEventListener === 'function') {
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      }
+    }
+  } catch (e) {}
+}
 function releaseWakeLock() {
   if (wakeLock) {
     try { wakeLock.release(); } catch(e) {}
@@ -2309,6 +2869,7 @@ function releaseWakeLock() {
 
 // 1. GPS Track CSV
 function exportGpsCsv() {
+  if (!state.race || !state.classSpeed) { alert('No run to export.'); return; }
   let csv = '# device: ' + (state.deviceLabel || 'unlabeled') + '\n';
   csv += 'timestamp_utc_ms,elapsed_sec,latitude,longitude,altitude_m,altitude_accuracy_m,altitude_ft,speed_mph,speed_ms,accuracy_m,heading_deg,net_online,net_effective,net_probe_ok,net_probe_ms\n';
   state.samples.forEach(s => {
@@ -2334,6 +2895,7 @@ function exportGpsCsv() {
 
 // 2. Motion Track CSV
 function exportMotionCsv() {
+  if (!state.race || !state.classSpeed) { alert('No run to export.'); return; }
   let csv = '# device: ' + (state.deviceLabel || 'unlabeled') + '\n';
   csv += 'timestamp_ms,accel_x,accel_y,accel_z,g_lateral,g_longitudinal,rot_alpha,rot_beta,rot_gamma,heading\n';
   state.motionSamples.forEach(s => {
@@ -2347,6 +2909,7 @@ function exportMotionCsv() {
 
 // 3. GPX
 function exportGpx() {
+  if (!state.race || !state.classSpeed) { alert('No run to export.'); return; }
   const startIso = new Date(state.startedAtMs).toISOString();
   let gpx = '<?xml version="1.0" encoding="UTF-8"?>\n';
   gpx += '<gpx version="1.1" creator="915 Race Control V1.0" xmlns="http://www.topografix.com/GPX/1/1">\n';
@@ -2370,9 +2933,14 @@ function exportGpx() {
 
 // 4. Full JSON
 function exportJson() {
+  if (!state.race || !state.classSpeed) { alert('No run to export.'); return; }
   const r = RACES[state.race];
   const coords = effectiveCoords(state.race);
-  const elapsedSec = (nowUtcMs() - state.startedAtMs) / 1000;
+  // Prefer the frozen final elapsed time captured at finish. Fall back to live calc
+  // only if export is hit before finishRun ever ran (shouldn't happen in practice).
+  const elapsedSec = (state.finalElapsedSec !== undefined && state.finalElapsedSec !== null)
+    ? state.finalElapsedSec
+    : ((nowUtcMs() - state.startedAtMs) / 1000);
   const perfectSec = (r.distance_mi / state.classSpeed) * 3600;
   const obj = {
     version: '1.0',
@@ -2443,11 +3011,17 @@ function exportJson() {
 
 // 5. HTML Race Report
 function exportReport() {
+  if (!state.race || !state.classSpeed) { alert('No run to export.'); return; }
   const r = RACES[state.race];
-  const elapsedSec = state.samples.length > 0 ? ((state.samples[state.samples.length-1].t - state.startedAtMs) / 1000) : 0;
+  // Use frozen finish elapsed if available (matches Done screen + JSON).
+  const elapsedSec = (state.finalElapsedSec !== undefined && state.finalElapsedSec !== null)
+    ? state.finalElapsedSec
+    : (state.samples.length > 0 ? ((state.samples[state.samples.length-1].t - state.startedAtMs) / 1000) : 0);
   const perfectSec = (r.distance_mi / state.classSpeed) * 3600;
   const finalDelta = elapsedSec - perfectSec;
-  const avgMph = state.distanceMi > 0 ? (state.distanceMi / (elapsedSec / 3600)) : 0;
+  const avgMph = (state.finalAvgMph !== undefined && state.finalAvgMph !== null)
+    ? state.finalAvgMph
+    : (state.distanceMi > 0 ? (state.distanceMi / (elapsedSec / 3600)) : 0);
 
   // Build speed trace SVG
   const svgW = 800, svgH = 200;
@@ -2589,6 +3163,7 @@ function resetAll() {
   document.getElementById('sprintBanner').classList.add('hidden');
   document.getElementById('gPadContainer').classList.remove('active');
   document.getElementById('courseNotesContainer').classList.remove('active');
+  closeMap();
   state.courseNotes = []; state.nextNoteIdx = 0; state.lastSpokenNoteIdx = -1;
   state.altStart = null; state.altPeak = null; state.altMin = null;
   state.altLast = null; state.altGainM = 0; state.altLossM = 0;
@@ -2603,6 +3178,8 @@ document.getElementById('backToSetup').onclick = () => { clearInterval(prestageT
 document.getElementById('disarmBtn').onclick = () => { state.armedStartUtcMs = null; document.getElementById('disarmBtn').style.display = 'none'; renderStartPicker(); speak(pick(['Disarmed. Take your time.', 'Clock disarmed. Changed your mind, huh?', 'Standing down. Pick a new time whenever you\'re ready.']), true); };
 document.getElementById('markFinish').onclick = () => finishRun('manual');
 document.getElementById('stopRun').onclick = () => { if (confirm('Abort the run? Data will be saved.')) finishRun('abort'); };
+document.getElementById('openMap').onclick = openMap;
+document.getElementById('closeMap').onclick = closeMap;
 document.getElementById('exportGpsCsv').onclick = exportGpsCsv;
 document.getElementById('exportMotionCsv').onclick = exportMotionCsv;
 document.getElementById('exportGpx').onclick = exportGpx;
@@ -2633,6 +3210,26 @@ document.getElementById('resetCoords').onclick = () => {
   if (!state.race) return;
   if (confirm('Reset coordinates to default for this race?')) { clearCustomCoords(state.race); renderSetup(); }
 };
+// Custom race editor: persist name and distance on change.
+(function(){
+  const nameInput = document.getElementById('customName');
+  const distInput = document.getElementById('customDistance');
+  if (nameInput) nameInput.addEventListener('change', (e) => {
+    const v = (e.target.value || '').trim();
+    RACES.custom.name = v || 'Independent Event';
+    RACES.custom.detail = RACES.custom.distance_mi.toFixed(2) + ' mi · Independent';
+    saveCustomRaceDef();
+    renderSetup();
+  });
+  if (distInput) distInput.addEventListener('change', (e) => {
+    const v = parseFloat(e.target.value);
+    if (isNaN(v) || v <= 0 || v >= 500) { alert('Distance must be between 0.5 and 500 miles.'); e.target.value = RACES.custom.distance_mi.toFixed(2); return; }
+    RACES.custom.distance_mi = v;
+    RACES.custom.detail = v.toFixed(2) + ' mi · Independent';
+    saveCustomRaceDef();
+    renderSetup();
+  });
+})();
 document.getElementById('coordModal').addEventListener('click', (e) => { if (e.target.id === 'coordModal') closeModal(); });
 document.getElementById('reqMotion').onclick = requestMotionPermission;
 document.getElementById('reqAudio').onclick = enableSpeech;
@@ -2653,14 +3250,16 @@ function bootApp() {
   if (__rcBooted) return;
   __rcBooted = true;
   loadCustomCoords();
+  loadCustomRaceDef();
   renderSetup();
   startGps();
   initNetworkMonitor();
   // Restore device label
   if (state.deviceLabel) {
     document.getElementById('deviceLabel').value = state.deviceLabel;
-    document.getElementById('labelTim').classList.toggle('enabled', state.deviceLabel === 'Tim - Windshield');
-    document.getElementById('labelJosh').classList.toggle('enabled', state.deviceLabel === 'Josh - Navigator');
+    document.querySelectorAll('[data-devlabel]').forEach(btn => {
+      btn.classList.toggle('enabled', btn.getAttribute('data-devlabel') === state.deviceLabel);
+    });
   }
   // Load voices — some browsers fire onvoiceschanged, others have them ready immediately
   if (window.speechSynthesis) {
