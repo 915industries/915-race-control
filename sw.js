@@ -3,7 +3,7 @@
    Strategy: cache-first for own-origin assets, network-first for cross-origin (probe, fonts, etc.)
    Bump CACHE_VERSION whenever index.html changes to force a refresh. */
 
-const CACHE_VERSION = 'v1.2.2';
+const CACHE_VERSION = 'v1.2.4';
 const CACHE_NAME = '915rc-' + CACHE_VERSION;
 
 // Everything we want guaranteed offline. Keep this list minimal — all app logic lives in index.html.
