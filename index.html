@@ -360,6 +360,23 @@
   .target-label { font-family: var(--mono); font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
   .target-value { font-family: var(--display); font-weight: 900; font-style: italic; font-size: 52px; line-height: 1; margin-top: 2px; }
   .target-unit { font-size: 18px; color: var(--muted); margin-left: 6px; font-style: normal; }
+  /* V1.6.4 — dedicated prominent Projected Finish block (Josh request). Sits high in the
+     race screen, just under "Hold This Speed". Shows the projected finish delta large +
+     color-coded, with the projected total finish time underneath. */
+  .proj-block { padding: 12px; background: #0c0c12; border-bottom: 1px solid var(--edge);
+    text-align: center; border-left: 3px solid var(--muted); }
+  .proj-block.ahead   { border-left-color: var(--red); }
+  .proj-block.behind  { border-left-color: var(--green); }
+  .proj-block.perfect { border-left-color: var(--blue); }
+  .proj-label { font-family: var(--mono); font-size: 9px; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--muted); }
+  .proj-value { font-family: var(--display); font-weight: 900; font-style: italic;
+    font-size: 46px; line-height: 1; margin-top: 2px; color: var(--text); }
+  .proj-value.ahead   { color: var(--red); }
+  .proj-value.behind  { color: var(--green); }
+  .proj-value.perfect { color: var(--blue); }
+  .proj-sub { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .proj-sub b { color: var(--text); font-weight: 700; }
   .speed-row { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--edge); }
   .speed-cell { padding: 10px 12px; text-align: center; border-right: 1px solid var(--edge); }
   .speed-cell:last-child { border-right: none; }
@@ -1237,6 +1254,12 @@
       <div class="target-label">Hold This Speed to Hit Perfect</div>
       <div class="target-value"><span id="correctSpd">&mdash;</span><span class="target-unit">mph</span></div>
     </div>
+    <!-- V1.6.4 — prominent Projected Finish block (Josh request) -->
+    <div class="proj-block" id="projBlock">
+      <div class="proj-label">Projected Finish</div>
+      <div class="proj-value" id="projFinishBig">&mdash;</div>
+      <div class="proj-sub" id="projFinishSub">&mdash;</div>
+    </div>
     <div class="speed-row">
       <div class="speed-cell"><div class="cell-label">Current GPS</div><div class="cell-value" id="curSpd">&mdash;</div></div>
       <div class="speed-cell"><div class="cell-label">Avg So Far</div><div class="cell-value" id="avgSpd">&mdash;</div></div>
@@ -1248,7 +1271,6 @@
       <div class="meta-cell"><div class="cell-label">Dist Done</div><div class="meta-value" id="distDone">&mdash;</div></div>
       <div class="meta-cell"><div class="cell-label">Time Left</div><div class="meta-value" id="timeLeft">&mdash;</div></div>
       <div class="meta-cell"><div class="cell-label">Elapsed</div><div class="meta-value" id="elapsed">&mdash;</div></div>
-      <div class="meta-cell"><div class="cell-label">Proj. Finish</div><div class="meta-value" id="projFinish">&mdash;</div></div>
       <div class="meta-cell"><div class="cell-label">vs Ghost</div><div class="meta-value" id="ghostDelta">&mdash;</div></div>
       <div class="meta-cell"><div class="cell-label">Elev</div><div class="meta-value" id="curElev">&mdash;</div></div>
       <div class="meta-cell"><div class="cell-label">Elev &Delta;</div><div class="meta-value" id="elevDelta">&mdash;</div></div>
@@ -4981,19 +5003,32 @@ function tickRace() {
     }
   }
 
-  // Projected finish delta — color-coded like the live delta.
-  const projEl = document.getElementById('projFinish');
-  if (projEl) {
+  // V1.6.4 — Projected Finish, now its own prominent block (Josh request).
+  // Big value = projected finish delta (color-coded stoplight). Sub-line = projected
+  // total finish time (perfect time + projected delta) plus the ahead/behind word.
+  const projBlock = document.getElementById('projBlock');
+  const projBig   = document.getElementById('projFinishBig');
+  const projSub   = document.getElementById('projFinishSub');
+  if (projBig && projSub && projBlock) {
+    projBlock.classList.remove('ahead','behind','perfect');
+    projBig.classList.remove('ahead','behind','perfect');
     if (state.projFinishDelta === null || isNaN(state.projFinishDelta)) {
-      projEl.textContent = '\u2014';
-      projEl.style.color = '';
+      projBig.textContent = '\u2014';
+      projSub.textContent = 'building projection\u2026';
     } else {
-      projEl.textContent = fmtDelta(state.projFinishDelta);
       const p = state.projFinishDelta;
+      projBig.textContent = fmtDelta(p);
       // Same three-color stoplight as the live delta block (no yellow while racing).
-      if (Math.abs(p) < 0.15) projEl.style.color = 'var(--blue)';   // on target
-      else if (p < 0)         projEl.style.color = 'var(--red)';    // ahead — slow down
-      else                    projEl.style.color = 'var(--green)';  // behind — speed up
+      let cls;
+      if (Math.abs(p) < 0.40) cls = 'perfect';        // on target (matches blue band)
+      else if (p < 0)         cls = 'ahead';          // ahead - slow down
+      else                    cls = 'behind';        // behind - speed up
+      projBlock.classList.add(cls);
+      projBig.classList.add(cls);
+      // Sub-line: projected total finish time = perfect time + projected delta.
+      const projElapsed = perfectSec + p;
+      const word = (cls === 'perfect') ? 'ON PACE' : (cls === 'ahead' ? 'AHEAD' : 'BEHIND');
+      projSub.innerHTML = 'finish at <b>' + fmtTimePrecise(projElapsed) + '</b> \u00b7 ' + word;
     }
   }
   // Stacey announces the projection when it swings by >0.5s since last call, throttled
