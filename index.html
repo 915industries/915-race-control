@@ -360,7 +360,7 @@
   .target-label { font-family: var(--mono); font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
   .target-value { font-family: var(--display); font-weight: 900; font-style: italic; font-size: 52px; line-height: 1; margin-top: 2px; }
   .target-unit { font-size: 18px; color: var(--muted); margin-left: 6px; font-style: normal; }
-  /* V1.6.4 — dedicated prominent Projected Finish block (Josh request). Sits high in the
+  /* V1.6.5 — dedicated prominent Projected Finish block (Josh request). Sits high in the
      race screen, just under "Hold This Speed". Shows the projected finish delta large +
      color-coded, with the projected total finish time underneath. */
   .proj-block { padding: 12px; background: #0c0c12; border-bottom: 1px solid var(--edge);
@@ -881,6 +881,29 @@
   #pinGate .pin-key:active { transform: scale(0.94); background: #1e1e1e; }
   #pinGate .pin-key.blank { visibility: hidden; pointer-events: none; }
   #pinGate .pin-key.action { font-size: 14px; letter-spacing: 1px; color: var(--muted); }
+
+  /* V1.6.5 — CP6 / red-flag finish band */
+  .cp6-banner { background: linear-gradient(90deg, #1a0c14 0%, #281020 100%);
+    border-top: 2px solid var(--race-red); border-bottom: 2px solid var(--race-red);
+    padding: 8px 12px; color: var(--text); }
+  .cp6-banner.hidden { display: none; }
+  .cp6-banner.locked { background: linear-gradient(90deg, #08160a 0%, #103020 100%);
+    border-color: #3df57e; }
+  .cp6-label { font-family: var(--mono); font-size: 9px; letter-spacing: 0.22em;
+    text-transform: uppercase; color: var(--race-red); font-weight: 700; }
+  .cp6-banner.locked .cp6-label { color: #3df57e; }
+  .cp6-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 4px 0 2px; }
+  .cp6-cell { text-align: center; }
+  .cp6-k { font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--muted); }
+  .cp6-v { font-family: var(--display); font-style: italic; font-weight: 900;
+    font-size: 22px; line-height: 1.1; color: var(--text); margin-top: 2px; }
+  .cp6-v.ahead   { color: var(--red); }
+  .cp6-v.behind  { color: var(--green); }
+  .cp6-v.perfect { color: var(--blue); }
+  .cp6-msg { font-family: var(--mono); font-size: 10px; color: var(--muted);
+    text-align: center; margin-top: 2px; letter-spacing: 0.05em; }
+  .cp6-banner.locked .cp6-msg { color: #3df57e; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -1078,7 +1101,7 @@
         <button class="coord-btn primary" id="captureStart">Capture Here</button>
         <button class="coord-btn" id="editStart">Enter Manually</button>
       </div>
-      <!-- V1.6.4 — two-shoulder line capture for line-crossing detector accuracy.
+      <!-- V1.6.5 — two-shoulder line capture for line-crossing detector accuracy.
            Optional. If only one shoulder is captured the race falls back to the
            point-and-radius gate (single Capture Here). When both A and B are
            captured the midpoint becomes the start coord and the segment wires
@@ -1242,6 +1265,16 @@
     <div class="sprint-label">FINAL SPRINT — 1/4 MILE SPLITS</div>
     <div class="sprint-msg" id="sprintMsg">&mdash;</div>
   </div>
+  <!-- V1.6.5 — Checkpoint 6 / red-flag finish band. Always visible during a Nevada race. -->
+  <div id="cp6Banner" class="cp6-banner hidden">
+    <div class="cp6-label">CP6 / RED-FLAG FINISH</div>
+    <div class="cp6-row">
+      <div class="cp6-cell"><div class="cp6-k">Cumulative avg</div><div class="cp6-v" id="cp6Avg">&mdash;</div></div>
+      <div class="cp6-cell"><div class="cp6-k">vs Class target</div><div class="cp6-v" id="cp6Tgt">&mdash;</div></div>
+      <div class="cp6-cell"><div class="cp6-k">To CP6</div><div class="cp6-v" id="cp6ToGo">&mdash;</div></div>
+    </div>
+    <div class="cp6-msg" id="cp6Msg">If the race is red-flagged, CP6 becomes your finish.</div>
+  </div>
   <div class="split-bar" id="splitBar"></div>
   <div class="telemetry">
     <div id="raceInfo" style="text-align:center; font-family:var(--block); font-weight:700; letter-spacing:2px; color:var(--race-red); font-size:14px; padding:4px 0 6px;">&mdash;</div>
@@ -1254,7 +1287,7 @@
       <div class="target-label">Hold This Speed to Hit Perfect</div>
       <div class="target-value"><span id="correctSpd">&mdash;</span><span class="target-unit">mph</span></div>
     </div>
-    <!-- V1.6.4 — prominent Projected Finish block (Josh request) -->
+    <!-- V1.6.5 — prominent Projected Finish block (Josh request) -->
     <div class="proj-block" id="projBlock">
       <div class="proj-label">Projected Finish</div>
       <div class="proj-value" id="projFinishBig">&mdash;</div>
@@ -2414,21 +2447,19 @@ const RACES = {
   // apart for north/south; Sanderson strips are 80 m apart).
   bborr_north: { name: 'BBORR Leg 2 (Sanderson to Ft Stockton)', detail: '59.00 mi | US 285 North', distance_mi: 59.00, start: { lat: 30.167184, lng: -102.407052 }, finish: { lat: 30.847791, lng: -102.851689 }, route: ROUTE_BBORR_NORTH, classes: [55,60,65,70,75,80,85,90,95,100,105,110,115,120,125,130,135,140,145,150,155,160,165,170,175,180,185,190,195,200], tech_above_class: 25, min_below_class: 30 },
   // SSCC — Silver State Classic Challenge, 90-mile one-way. Same SR-318 course as NORC SB.
-  // V1.6.4 — coords restored to OFFICIAL course-note timing-line coordinates (revised 2026-01-11).
+  // V1.6.5 — coords restored to OFFICIAL course-note timing-line coordinates (revised 2026-01-11).
   //          perfectTimesSec lookup REMOVED — it was corrupted (off by up to 120 s on some
   //          classes). getPerfectSec now uses the clean distance/class formula, which the
   //          official course-note distances make exact. classes trimmed to the official
   //          SSCC/NORC set: 95-160 in 5-mph steps, then 170, 180.
   //          NORC/SSCC tech margin is +15 above class. For 125: tech 140, min 95.
-  // V1.6.5 — added 70 (Weather / bad-weather class). 70 gets a special +20 tech window
-  // (90 mph tech) regardless of the race default — see getTechSpeed().
-  sscc: { name: 'Silver State Classic Challenge', detail: '90.00 mi | Nevada SR-318', distance_mi: 90.00, start: { lat: 38.837020, lng: -115.010715 }, finish: { lat: 37.627386, lng: -115.221253 }, route: ROUTE_NORC_SB, classes: [70,95,100,105,110,115,120,125,130,135,140,145,150,155,160,170,180], tech_above_class: 15, min_below_class: 30, startLine: { a: { lat: 38.837041, lng: -115.010760 }, b: { lat: 38.837021, lng: -115.010662 } }, finishLine: { a: { lat: 37.627343, lng: -115.221233 }, b: { lat: 37.627372, lng: -115.221326 } } },
+  sscc: { name: 'Silver State Classic Challenge', detail: '90.00 mi | Nevada SR-318', distance_mi: 90.00, start: { lat: 38.837020, lng: -115.010715 }, finish: { lat: 37.627386, lng: -115.221253 }, route: ROUTE_NORC_SB, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,170,180], tech_above_class: 15, min_below_class: 30, startLine: { a: { lat: 38.837041, lng: -115.010760 }, b: { lat: 38.837021, lng: -115.010662 } }, finishLine: { a: { lat: 37.627343, lng: -115.221233 }, b: { lat: 37.627372, lng: -115.221326 } } },
   // NORC Southbound — Lund -> Hiko, 90.00 mi. Official course-note distance & coords.
-  // V1.6.4 — coords restored to official course notes; corrupted perfectTimesSec removed.
-  norc_sb: { name: 'NORC Leg 1 (Southbound, Lund to Hiko)', detail: '90.00 mi | Nevada SR-318 South', distance_mi: 90.00, start: { lat: 38.837020, lng: -115.010715 }, finish: { lat: 37.627386, lng: -115.221253 }, route: ROUTE_NORC_SB, classes: [70,95,100,105,110,115,120,125,130,135,140,145,150,155,160,170,180], tech_above_class: 15, min_below_class: 30, startLine: { a: { lat: 38.837041, lng: -115.010760 }, b: { lat: 38.837021, lng: -115.010662 } }, finishLine: { a: { lat: 37.627343, lng: -115.221233 }, b: { lat: 37.627372, lng: -115.221326 } } },
+  // V1.6.5 — coords restored to official course notes; corrupted perfectTimesSec removed.
+  norc_sb: { name: 'NORC Leg 1 (Southbound, Lund to Hiko)', detail: '90.00 mi | Nevada SR-318 South', distance_mi: 90.00, start: { lat: 38.837020, lng: -115.010715 }, finish: { lat: 37.627386, lng: -115.221253 }, route: ROUTE_NORC_SB, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,170,180], tech_above_class: 15, min_below_class: 30, startLine: { a: { lat: 38.837041, lng: -115.010760 }, b: { lat: 38.837021, lng: -115.010662 } }, finishLine: { a: { lat: 37.627343, lng: -115.221233 }, b: { lat: 37.627372, lng: -115.221326 } } },
   // NORC Northbound — Hiko -> mid-point, 61.38 mi. Official course-note distance & coords.
-  // V1.6.4 — coords restored to official course notes; corrupted perfectTimesSec removed.
-  norc_nb: { name: 'NORC Leg 2 (Northbound, Hiko to mid-point)', detail: '61.38 mi | Nevada SR-318 North', distance_mi: 61.38, start: { lat: 37.627386, lng: -115.221253 }, finish: { lat: 38.433711, lng: -115.013328 }, route: ROUTE_NORC_NB, classes: [70,95,100,105,110,115,120,125,130,135,140,145,150,155,160,170,180], tech_above_class: 15, min_below_class: 30, startLine: { a: { lat: 37.627343, lng: -115.221233 }, b: { lat: 37.627372, lng: -115.221326 } }, finishLine: { a: { lat: 38.433740, lng: -115.013382 }, b: { lat: 38.433699, lng: -115.013303 } } },
+  // V1.6.5 — coords restored to official course notes; corrupted perfectTimesSec removed.
+  norc_nb: { name: 'NORC Leg 2 (Northbound, Hiko to mid-point)', detail: '61.38 mi | Nevada SR-318 North', distance_mi: 61.38, start: { lat: 37.627386, lng: -115.221253 }, finish: { lat: 38.433711, lng: -115.013328 }, route: ROUTE_NORC_NB, classes: [95,100,105,110,115,120,125,130,135,140,145,150,155,160,170,180], tech_above_class: 15, min_below_class: 30, startLine: { a: { lat: 37.627343, lng: -115.221233 }, b: { lat: 37.627372, lng: -115.221326 } }, finishLine: { a: { lat: 38.433740, lng: -115.013382 }, b: { lat: 38.433699, lng: -115.013303 } } },
   // Independent / custom event — user defines everything. Persisted to localStorage.
   // Independent event supports a wider class range (55–200 mph in 5-mph steps) since it
   // can be used for anything — club events, closed-course runs, recon drives, etc.
@@ -2623,7 +2654,7 @@ const COURSE_NOTES = {
     {mi:57.8,turn:'1L',desc:'LH sweeper into finish line straight heading home',warn:''},
     {mi:59.0,turn:'',desc:'FINISH LINE (3,080 ft elev)',warn:'GATE ON RIGHT'}
   ],
-  // V1.6.4 — NORC course notes built from the official 2026 Nevada Open Road Challenge
+  // V1.6.5 — NORC course notes built from the official 2026 Nevada Open Road Challenge
   // Highway 318 Course Notes (revised 2026-01-11). Every turn, all 8 checkpoints, county
   // lines, and The Narrows. warn[] populated on the genuinely critical entries so they
   // trigger the hazard styling + audio callout: the treacherous blind curve, the Narrows
@@ -2651,7 +2682,7 @@ const COURSE_NOTES = {
     {mi:51.89,turn:'L41',desc:'Moderate LH 41° late apex — just over a hill',warn:''},
     {mi:53.33,turn:'R22',desc:'Gentle RH 22°, uphill over crest',warn:''},
     {mi:55.11,turn:'R5',desc:'Gentle RH 5°, over hill crest',warn:''},
-    {mi:57.24,turn:'CP6',desc:'Checkpoint #6 — flags on left',warn:''},
+    {mi:57.24,turn:'CP6',desc:'Checkpoint #6 — flags on left — RED-FLAG FINISH POINT',warn:'CHECKPOINT 6 ahead — red-flag finish point — call cumulative average'},
     {mi:57.40,turn:'R7',desc:'Gentle RH 7°, over hill',warn:''},
     {mi:58.51,turn:'R5',desc:'Gentle RH 5°, over hill',warn:''},
     {mi:59.52,turn:'R11',desc:'Gentle RH 11°, downhill',warn:''},
@@ -2716,7 +2747,7 @@ const COURSE_NOTES = {
     {mi:30.08,turn:'L11',desc:'Gentle LH 11°, uphill',warn:''},
     {mi:31.28,turn:'L5',desc:'Gentle LH 5°, over hill',warn:''},
     {mi:32.43,turn:'L7',desc:'Gentle LH 7°, over hill',warn:''},
-    {mi:32.77,turn:'CP6',desc:'Checkpoint #6 — flags on right',warn:''},
+    {mi:32.77,turn:'CP6',desc:'Checkpoint #6 — flags on right — RED-FLAG FINISH POINT',warn:'CHECKPOINT 6 ahead — red-flag finish point — call cumulative average'},
     {mi:34.69,turn:'L5',desc:'Gentle LH 5°, over hill crest',warn:''},
     {mi:36.21,turn:'L22',desc:'Gentle LH 22°, over crest, downhill',warn:''},
     {mi:37.33,turn:'R40',desc:'Moderate RH 40° — into 3 mile straight',warn:''},
@@ -2759,20 +2790,6 @@ function savePerfectOverrides() {
   try { localStorage.setItem(PERFECT_OVERRIDE_KEY, JSON.stringify(perfectTimeOverrides)); } catch (e) {}
 }
 function perfectOverrideKey(raceKey, classSpeed) { return raceKey + '_' + classSpeed; }
-// V1.6.5 — tech speed (DQ threshold) lookup. The 70 mph "Weather" class is a special
-// bad-weather (rain/snow) class with a fixed 90 mph tech window regardless of which
-// event is selected. All other classes use the race's tech_above_class margin.
-// Route every "tech speed" calculation through this so HUD, JSON export, and Race
-// Report all agree on the same number.
-function getTechSpeed(raceKey, classSpeed) {
-  if (classSpeed === 70) return 90;  // Weather/70 — bad-weather class, hard-coded 90 mph tech
-  const r = RACES[raceKey];
-  if (!r || !classSpeed) return classSpeed || 0;
-  return classSpeed + r.tech_above_class;
-}
-// V1.6.5 — pretty label for the class number. Most classes are just the speed; the
-// 70 class is labeled "70 (WX)" so the navigator can tell it apart from a normal 70.
-function classLabel(c) { return c === 70 ? '70 WX' : String(c); }
 // Authoritative perfect-time getter. Checks the user-set override first; otherwise
 // computes distance/class*3600. All race-time math should route through this so an
 // override takes effect everywhere (HUD, Done screen, JSON + HTML exports).
@@ -2855,7 +2872,7 @@ const GHOST_SAMPLE_CAP = 500;
 const state = {
   race: null, classSpeed: null, armedStartUtcMs: null,
   raceActive: false, startedAtMs: null,
-  samples: [], motionSamples: [], lastPos: null, distanceMi: 0, courseProgressMi: 0, peakMph: 0,
+  samples: [], motionSamples: [], lastPos: null, distanceMi: 0, courseProgressMi: 0, peakMph: 0, cp6Snapshot: null,
   gpsWatchId: null, gpsTimeOffsetMs: 0, lastFixTime: 0,
   customCoords: {},
   motionEnabled: false, compassEnabled: false, speechEnabled: false,
@@ -2930,7 +2947,7 @@ function haversine(a, b) {
 }
 
 // V1.6.1 — race-direction vector at the finish, derived from the polyline's last segment.
-// V1.6.4 — falls back to start->finish bearing for polyline-less races (Independent Event).
+// V1.6.5 — falls back to start->finish bearing for polyline-less races (Independent Event).
 // Returns {dx, dy} in local meters (east/north). Null if neither source is available.
 // NOT cached anymore — race-dir is cheap to recompute, and caching led to stale values
 // when the Independent Event's start/finish coords were re-captured during Setup.
@@ -2942,7 +2959,7 @@ function finishLineRaceDir(race) {
     const kx = 111320 * Math.cos(lat0 * Math.PI / 180), ky = 110540;
     return { dx: (last.lng - prev.lng) * kx, dy: (last.lat - prev.lat) * ky };
   }
-  // V1.6.4 fallback — straight start->finish bearing for Independent Event.
+  // V1.6.5 fallback — straight start->finish bearing for Independent Event.
   if (race.start && race.finish &&
       (race.start.lat !== 0 || race.start.lng !== 0) &&
       (race.finish.lat !== 0 || race.finish.lng !== 0)) {
@@ -2954,7 +2971,7 @@ function finishLineRaceDir(race) {
   return null;
 }
 // V1.6.2 — race-direction vector at the START, derived from the polyline's first segment.
-// V1.6.4 — falls back to start->finish bearing for polyline-less races.
+// V1.6.5 — falls back to start->finish bearing for polyline-less races.
 function startLineRaceDir(race) {
   const route = race.route;
   if (route && route.length >= 2) {
@@ -2963,7 +2980,7 @@ function startLineRaceDir(race) {
     const kx = 111320 * Math.cos(lat0 * Math.PI / 180), ky = 110540;
     return { dx: (next.lng - first.lng) * kx, dy: (next.lat - first.lat) * ky };
   }
-  // V1.6.4 fallback — straight start->finish bearing.
+  // V1.6.5 fallback — straight start->finish bearing.
   if (race.start && race.finish &&
       (race.start.lat !== 0 || race.start.lng !== 0) &&
       (race.finish.lat !== 0 || race.finish.lng !== 0)) {
@@ -3067,83 +3084,17 @@ function fileTag() {
   const devTag = state.deviceLabel ? '-' + state.deviceLabel.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() : '';
   return '915rc-' + raceTag + '-' + (state.classSpeed || 0) + 'mph-' + dateTag + devTag;
 }
-// V1.6.5 — iOS Safari / TestFlight WebView ignores the <a download> attribute and
-// PWAs in standalone mode block the navigation entirely, so the old anchor-click
-// pattern silently did nothing on iPhone. New flow:
-//   1. Try the Web Share API with a File payload (iOS 15+, iPadOS, Android Chrome 89+).
-//      The user gets the native share sheet and can Save to Files, AirDrop, mail, etc.
-//   2. Fallback to the classic anchor click — appended to document.body so iOS
-//      WKWebView actually fires the click; some Android WebViews need this too.
-//   3. Last-resort fallback opens the blob URL in a new tab so the user can long-press
-//      and save manually. We never leave the user without a path to the file.
-function isIOSDevice() {
-  const ua = navigator.userAgent || '';
-  // Modern iPadOS reports as Mac but has touch; classic iPhone/iPad UA strings match cleanly.
-  return /iPad|iPhone|iPod/.test(ua) || (ua.includes('Mac') && navigator.maxTouchPoints > 1);
-}
-async function downloadBlob(blob, filename) {
-  // Path 1 — Web Share API with file (iOS PWA / TestFlight friendly).
-  try {
-    if (navigator.canShare && typeof File === 'function') {
-      const file = new File([blob], filename, { type: blob.type || 'application/octet-stream' });
-      if (navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: filename, text: filename });
-        return;
-      }
-    }
-  } catch (e) {
-    // Aborts (user dismissed sheet) and capability errors both land here.
-    // If the user explicitly canceled, bail without falling through to download.
-    if (e && (e.name === 'AbortError' || e.name === 'NotAllowedError')) return;
-    // Otherwise fall through to the anchor path.
-  }
-  // Path 2 — classic anchor click. Append to body so iOS WKWebView dispatches the click.
-  try {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.rel = 'noopener';
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      try { document.body.removeChild(a); } catch (e) {}
-      URL.revokeObjectURL(url);
-    }, 2000);
-    // On iOS Safari (not PWA) the download attr is ignored and the link navigates
-    // away. To give the user a save path, also try opening in a new tab on iOS so
-    // they can long-press → Save to Files.
-    if (isIOSDevice()) {
-      // Read the blob as a data URL — survives navigation and is shareable.
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const w = window.open();
-          if (w) {
-            w.document.title = filename;
-            // Provide a tap target plus the data URI link for long-press save.
-            w.document.body.innerHTML =
-              '<div style="font-family:-apple-system,sans-serif;padding:24px;line-height:1.5">' +
-              '<h2 style="margin-bottom:12px">' + filename + '</h2>' +
-              '<p>Tap and hold the link below, then choose <b>Download Linked File</b> or <b>Share</b>.</p>' +
-              '<p style="margin-top:16px"><a href="' + reader.result + '" download="' + filename +
-              '" style="display:inline-block;padding:14px 20px;background:#e31937;color:#fff;border-radius:8px;text-decoration:none;font-weight:700">Save ' + filename + '</a></p>' +
-              '</div>';
-          }
-        } catch (e) {}
-      };
-      reader.readAsDataURL(blob);
-    }
-  } catch (e) {
-    alert('Export failed: ' + (e && e.message ? e.message : 'unknown error'));
-  }
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 /* =============== COORDINATE STORAGE =============== */
 function loadCustomCoords() {
   try { const raw = localStorage.getItem(COORD_STORAGE_KEY); if (raw) state.customCoords = JSON.parse(raw); } catch (e) { state.customCoords = {}; }
-  // V1.6.4 — re-derive RACES[*].startLine / finishLine from saved shoulder data
+  // V1.6.5 — re-derive RACES[*].startLine / finishLine from saved shoulder data
   // so a phone reboot doesn't lose the line-crossing wiring.
   try { reapplyAllShoulders(); } catch (e) { console.warn('reapplyAllShoulders:', e); }
 }
@@ -3157,7 +3108,7 @@ function effectiveCoords(raceKey) {
 function setCustomCoord(raceKey, which, coord, opts) {
   if (!state.customCoords[raceKey]) state.customCoords[raceKey] = {};
   state.customCoords[raceKey][which] = coord;
-  // V1.6.4 — single-point capture invalidates any prior two-shoulder data for the same
+  // V1.6.5 — single-point capture invalidates any prior two-shoulder data for the same
   // direction. Shoulder-derived calls (from applyShoulderLineIfComplete) pass
   // { fromShoulder: true } so the shoulders survive. Single-point captures (Capture Here,
   // Edit modal) clear the shoulders so we don't end up with inconsistent line vs point.
@@ -3201,13 +3152,13 @@ function setCustomCoord(raceKey, which, coord, opts) {
 function clearCustomCoords(raceKey) {
   delete state.customCoords[raceKey];
   saveCustomCoords();
-  // V1.6.4 — also drop any captured shoulder data and the derived startLine/finishLine
+  // V1.6.5 — also drop any captured shoulder data and the derived startLine/finishLine
   // on the race entry so the app falls back to point + radius.
   const r = RACES[raceKey];
   if (r) { delete r.startLine; delete r.finishLine; }
 }
 
-/* =============== V1.6.4 — SHOULDER LINE CAPTURE ===============
+/* =============== V1.6.5 — SHOULDER LINE CAPTURE ===============
    Lets the navigator capture two-shoulder coords for the Start or Finish line
    on any race (most useful on the Independent Event, also works to override
    prebaked NORC/SSCC shoulders if needed). When BOTH shoulders for a line are
@@ -3308,7 +3259,7 @@ function clearShoulders(raceKey, which) {
   renderSetup();
 }
 
-// V1.6.4 — Re-apply any saved shoulder data when the app loads so a phone restart
+// V1.6.5 — Re-apply any saved shoulder data when the app loads so a phone restart
 // doesn't lose the user's captures. Called once at startup after customCoords load.
 function reapplyAllShoulders() {
   for (const raceKey of Object.keys(state.customCoords || {})) {
@@ -3620,19 +3571,15 @@ function renderSetup() {
     RACES[state.race].classes.forEach(c => {
       const btn = document.createElement('button');
       btn.className = 'class-btn' + (state.classSpeed === c ? ' selected' : '');
-      btn.textContent = classLabel(c);
+      btn.textContent = c;
       btn.onclick = () => {
         state.classSpeed = c; renderSetup();
-        if (c === 70) {
-          speak('Weather class. 70 mile per hour pace, 90 mph tech. Eyes on the road.', true);
-        } else {
-          speak(pick([
-            c + ' mile per hour class. Lock it in.',
-            c + ' class. Bold move. I like it.',
-            c + ' class selected. No turning back now.',
-            c + ' mph. Let\'s make this one count.'
-          ]), true);
-        }
+        speak(pick([
+          c + ' mile per hour class. Lock it in.',
+          c + ' class. Bold move. I like it.',
+          c + ' class selected. No turning back now.',
+          c + ' mph. Let\'s make this one count.'
+        ]), true);
       };
       classRow.appendChild(btn);
     });
@@ -3682,7 +3629,7 @@ function renderSetup() {
   if (state.race && state.classSpeed) {
     const r = RACES[state.race], coords = effectiveCoords(state.race);
     const perfectSec = getPerfectSec(state.race, state.classSpeed);
-    const tech = getTechSpeed(state.race, state.classSpeed);
+    const tech = state.classSpeed + r.tech_above_class;
     const minSpd = Math.max(state.classSpeed - r.min_below_class, 25);
     const straightMi = haversine(coords.start, coords.finish) * MI_PER_M;
     const sprintStart = Math.max(r.distance_mi - 5, 0);
@@ -3722,7 +3669,7 @@ function renderCoordCards() {
   else { startStatus.textContent = 'DEFAULT'; startStatus.classList.remove('saved'); startCardEl.classList.remove('captured'); }
   if (c.customFinish) { finishStatus.textContent = 'SAVED'; finishStatus.classList.add('saved'); finishCardEl.classList.add('captured'); }
   else { finishStatus.textContent = 'DEFAULT'; finishStatus.classList.remove('saved'); finishCardEl.classList.remove('captured'); }
-  // V1.6.4 — shoulder capture status block on each card.
+  // V1.6.5 — shoulder capture status block on each card.
   renderShoulderStatus('start');
   renderShoulderStatus('finish');
 }
@@ -4115,6 +4062,11 @@ function initNetworkMonitor() {
 }
 
 /* =============== SPLITS =============== */
+// V1.6.5 — Checkpoint 6 is the official red-flag end point. If the course is red-flagged
+// mid-event, CP6 becomes the scoring finish for both legs. Surveyed CP6 mile-markers
+// from the official 2026 NORC course notes.
+const CP6_MILE = { norc_sb: 57.243, norc_nb: 32.767, sscc: 57.243 };
+
 function buildSplits() {
   const r = RACES[state.race];
   const total = r.distance_mi;
@@ -4127,6 +4079,15 @@ function buildSplits() {
   for (let mi = sprintStart + 0.25; mi <= total + 0.001; mi += 0.25) {
     const m = Math.min(mi, total);
     splits.push({ mi: m, target_sec: (m / state.classSpeed) * 3600, actual_sec: null, delta_sec: null, type: 'sprint' });
+  }
+  // V1.6.5 — insert the red-flag CP6 checkpoint for the Nevada races.
+  const cp6 = CP6_MILE[state.race];
+  if (typeof cp6 === 'number' && state.classSpeed) {
+    const exists = splits.some(sp => Math.abs(sp.mi - cp6) < 0.005);
+    if (!exists) {
+      splits.push({ mi: cp6, target_sec: (cp6 / state.classSpeed) * 3600,
+                    actual_sec: null, delta_sec: null, type: 'cp6' });
+    }
   }
   splits.sort((a, b) => a.mi - b.mi);
   state.splits = splits;
@@ -4154,12 +4115,88 @@ function renderSplitBar() {
   const current = bar.querySelector('.split-chip.current');
   if (current) current.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
 }
+// V1.6.5 — Render the CP6 / red-flag-finish banner. Two modes:
+//   PRE  : live cumulative average mph + miles-to-CP6 + projected delta-at-CP6
+//   POST : locked snapshot of the actual avg + delta at CP6 crossing.
+function renderCp6Banner() {
+  const r = RACES[state.race];
+  const cp6Mi = CP6_MILE[state.race];
+  const el = document.getElementById('cp6Banner');
+  if (!el || typeof cp6Mi !== 'number') { if (el) el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  const avgEl = document.getElementById('cp6Avg');
+  const tgtEl = document.getElementById('cp6Tgt');
+  const tgoEl = document.getElementById('cp6ToGo');
+  const msgEl = document.getElementById('cp6Msg');
+  if (state.cp6Snapshot) {
+    el.classList.add('locked');
+    const s = state.cp6Snapshot;
+    avgEl.textContent = s.avg_mph_at_cp6.toFixed(1) + ' mph';
+    avgEl.className = 'cp6-v';
+    tgtEl.textContent = (s.delta_sec_at_cp6 >= 0 ? '+' : '') + s.delta_sec_at_cp6.toFixed(2) + 's';
+    tgtEl.className = 'cp6-v';
+    if (Math.abs(s.delta_sec_at_cp6) < 0.40) tgtEl.classList.add('perfect');
+    else if (s.delta_sec_at_cp6 < 0) tgtEl.classList.add('ahead');
+    else tgtEl.classList.add('behind');
+    tgoEl.textContent = 'LOCKED';
+    tgoEl.className = 'cp6-v';
+    msgEl.textContent = 'CP6 crossed at mile ' + s.mile.toFixed(2) + '. Red-flag finish reference is now locked.';
+  } else {
+    el.classList.remove('locked');
+    const elapsed = state.startedAtMs ? (nowUtcMs() - state.startedAtMs) / 1000 : 0;
+    const progMi = state.courseProgressMi || 0;
+    const avg = (elapsed > 0 && progMi > 0.1) ? (progMi / (elapsed / 3600)) : null;
+    avgEl.textContent = avg !== null ? avg.toFixed(1) + ' mph' : '\u2014';
+    avgEl.className = 'cp6-v';
+    if (avg !== null) {
+      if (Math.abs(avg - state.classSpeed) < 0.5) avgEl.classList.add('perfect');
+      else if (avg > state.classSpeed) avgEl.classList.add('ahead');
+      else avgEl.classList.add('behind');
+    }
+    const targetSecAtCp6 = (cp6Mi / state.classSpeed) * 3600;
+    let projDelta = null;
+    if (avg !== null && avg > 1) {
+      const projT = (cp6Mi / avg) * 3600;
+      projDelta = projT - targetSecAtCp6;
+    }
+    tgtEl.textContent = projDelta !== null
+      ? (projDelta >= 0 ? '+' : '') + projDelta.toFixed(1) + 's'
+      : '\u2014';
+    tgtEl.className = 'cp6-v';
+    if (projDelta !== null) {
+      if (Math.abs(projDelta) < 1.0) tgtEl.classList.add('perfect');
+      else if (projDelta < 0) tgtEl.classList.add('ahead');
+      else tgtEl.classList.add('behind');
+    }
+    const toGo = cp6Mi - progMi;
+    tgoEl.textContent = toGo > 0 ? toGo.toFixed(1) + ' mi' : 'at CP6';
+    tgoEl.className = 'cp6-v';
+    msgEl.textContent = 'If the race is red-flagged, CP6 becomes your finish (mile ' + cp6Mi.toFixed(2) + ').';
+  }
+}
+
 function checkSplits(elapsedSec, distMi) {
   while (state.nextSplitIdx < state.splits.length) {
     const s = state.splits[state.nextSplitIdx];
     if (distMi >= s.mi) {
       s.actual_sec = elapsedSec;
       s.delta_sec = elapsedSec - s.target_sec;
+      // V1.6.5 — Special handling for the CP6 red-flag-finish checkpoint.
+      if (s.type === 'cp6') {
+        const avgMph = elapsedSec > 0 ? (s.mi / (elapsedSec / 3600)) : 0;
+        state.cp6Snapshot = {
+          mile: s.mi, elapsed_sec: elapsedSec,
+          perfect_sec_at_cp6: s.target_sec, delta_sec_at_cp6: s.delta_sec,
+          avg_mph_at_cp6: avgMph, class_mph: state.classSpeed
+        };
+        const dWord = s.delta_sec >= 0 ? 'plus' : 'minus';
+        speak('Checkpoint six. Red flag finish point. Average ' + avgMph.toFixed(1) +
+              ' miles per hour. Delta ' + dWord + ' ' + Math.abs(s.delta_sec).toFixed(1) +
+              ' seconds.', true);
+        try { renderCp6Banner(); } catch (e) {}
+        state.nextSplitIdx++;
+        continue;
+      }
       const absD = Math.abs(s.delta_sec).toFixed(1);
       const miStr = (s.type === 'sprint' ? s.mi.toFixed(2) : s.mi.toFixed(0));
       let msg;
@@ -4413,7 +4450,7 @@ function routeCumDist(route) {
   return cum;
 }
 
-// V1.6.4 — polyline metadata, cached on the race object. The polyline is a fixed-length
+// V1.6.5 — polyline metadata, cached on the race object. The polyline is a fixed-length
 // reference for the course; cum[] is cumulative meters at each vertex, scale maps the
 // polyline's own geometric length onto the official surveyed course distance so course
 // progress reads exactly distance_mi at the finish line.
@@ -4428,7 +4465,7 @@ function ensureRouteMeta(race) {
   return race._routeMeta;
 }
 
-// V1.6.4 — project a GPS position onto the route polyline. Returns the along-track
+// V1.6.5 — project a GPS position onto the route polyline. Returns the along-track
 // distance (meters from polyline start) and the perpendicular distance (how far the
 // position is off the polyline). This replaces raw GPS-integration distance for the
 // splits, delta and finish gating: raw integration over-measures ~0.1-0.4% from sample
@@ -4755,7 +4792,7 @@ function updateMapLive() {
     ghostLayer.innerHTML = gHtml;
   }
   // Stats.
-  const distDone = state.courseProgressMi || 0;  // V1.6.4 — course progress, not raw odometer
+  const distDone = state.courseProgressMi || 0;  // V1.6.5 — course progress, not raw odometer
   const distToGo = r ? Math.max(r.distance_mi - distDone, 0) : 0;
   document.getElementById('mapDone').textContent = distDone.toFixed(2) + ' mi';
   document.getElementById('mapToGo').textContent = distToGo.toFixed(2) + ' mi';
@@ -4942,7 +4979,7 @@ function launchRace() {
   if (state.raceActive) return;
   try {
     state.raceActive = true;
-    // V1.6.4 (post-Josh-correction) — REVERTED V1.6.2 start-line behavior.
+    // V1.6.5 (post-Josh-correction) — REVERTED V1.6.2 start-line behavior.
     // SSCC and NORC officially anchor the race clock to the released-at time
     // (the countdown), NOT to the physical line crossing. Josh confirmed this
     // is how the event timer works at every open road race they run. So the
@@ -4956,6 +4993,7 @@ function launchRace() {
     state.prevPerpSignedStart = null;
     state.samples = []; state.motionSamples = [];
     state.distanceMi = 0; state.courseProgressMi = 0; state.peakMph = 0;
+    state.cp6Snapshot = null;
     // Intentionally do NOT null state.lastPos — we want the pre-launch GPS fix
     // preserved so the very first post-launch tick can compute distance/speed.
     // Nulling it would leave the HUD blank for up to 2 seconds at 1 Hz GPS.
@@ -5016,7 +5054,7 @@ function handleRaceFix(fix) {
     if (speedCheck > 2 && dM < 500 && fix.accuracy !== null && fix.accuracy < 50) {
       state.distanceMi += dM * MI_PER_M;
     }
-    // V1.6.4 — course progress anchored to the polyline (official-distance reference).
+    // V1.6.5 — course progress anchored to the polyline (official-distance reference).
     // state.distanceMi (raw GPS integration) over-measures ~0.1-0.4% from sample noise,
     // which drifts the splits ahead of the real course. Projecting the fix onto the fixed
     // polyline and scaling to the official course length keeps the splits, the live delta
@@ -5069,7 +5107,7 @@ function handleRaceFix(fix) {
 function tickRace() {
   const r = RACES[state.race];
   const now = nowUtcMs();
-  // V1.6.4 — start-line short-circuit removed. SSCC/NORC anchor the official
+  // V1.6.5 — start-line short-circuit removed. SSCC/NORC anchor the official
   // race clock to the released-at countdown (V1.5.x behavior). The block of
   // code that previously waited for the start-line crossing has been deleted
   // here; the helper functions (checkStartLineCrossing, etc.) are preserved
@@ -5082,7 +5120,7 @@ function tickRace() {
   const distRemainMi = Math.max(r.distance_mi - state.courseProgressMi, 0);
   const curMph = (state.lastPos && state.lastPos.speed_ms !== null) ? state.lastPos.speed_ms * MS_TO_MPH : null;
   const avgMph = elapsedSec > 0 ? (state.courseProgressMi / (elapsedSec / 3600)) : 0;
-  const expectedTimeAtDist = (state.courseProgressMi / state.classSpeed) * 3600;  // V1.6.4 — anchored to official course distance
+  const expectedTimeAtDist = (state.courseProgressMi / state.classSpeed) * 3600;  // V1.6.5 — anchored to official course distance
   const deltaSec = elapsedSec - expectedTimeAtDist;
   let correctMph = null;
   if (timeRemainSec > 0 && distRemainMi > 0) correctMph = distRemainMi / (timeRemainSec / 3600);
@@ -5147,7 +5185,7 @@ function tickRace() {
   if (curMph !== null) {
     curEl.textContent = curMph.toFixed(0);
     curEl.classList.remove('warn','danger');
-    const tech = getTechSpeed(state.race, state.classSpeed);
+    const tech = state.classSpeed + r.tech_above_class;
     // Amber pre-warning band: 8 mph below tech. Re-arm 13 mph below tech (5 mph hysteresis).
     if (curMph >= tech) { curEl.classList.add('danger'); document.getElementById('dqWarning').classList.remove('hidden'); }
     else if (curMph >= tech - 8) {
@@ -5166,6 +5204,8 @@ function tickRace() {
   document.getElementById('avgSpd').textContent = avgMph > 0 ? avgMph.toFixed(1) : '\u2014';
   document.getElementById('distLeft').textContent = distRemainMi.toFixed(2) + ' mi';
   document.getElementById('distDone').textContent = state.courseProgressMi.toFixed(2) + ' mi';
+  // V1.6.5 — CP6 / red-flag-finish banner: live before CP6, locked after.
+  try { renderCp6Banner(); } catch (e) {}
   document.getElementById('timeLeft').textContent = fmtTime(Math.max(timeRemainSec, 0));
   document.getElementById('elapsed').textContent = fmtTime(elapsedSec);
   document.getElementById('elapsedTop').textContent = fmtTime(elapsedSec);
@@ -5195,7 +5235,7 @@ function tickRace() {
     }
   }
 
-  // V1.6.4 — Projected Finish, now its own prominent block (Josh request).
+  // V1.6.5 — Projected Finish, now its own prominent block (Josh request).
   // Big value = projected finish delta (color-coded stoplight). Sub-line = projected
   // total finish time (perfect time + projected delta) plus the ahead/behind word.
   const projBlock = document.getElementById('projBlock');
@@ -5475,6 +5515,7 @@ function finishRun(reason) {
       peakGLat: state.peakGLat, peakGLong: state.peakGLong,
       device: state.deviceLabel || 'unlabeled',
       splits: state.splits,
+      red_flag_checkpoint: state.cp6Snapshot,
       gps_sample_count: state.samples.length,
       motion_sample_count: state.motionSamples.length,
       elevation: {
@@ -5613,7 +5654,7 @@ function exportJson() {
     device: state.deviceLabel || 'unlabeled',
     race: { key: state.race, name: r.name, distance_mi: r.distance_mi },
     classSpeed_mph: state.classSpeed,
-    techSpeed_mph: getTechSpeed(state.race, state.classSpeed),
+    techSpeed_mph: state.classSpeed + r.tech_above_class,
     coordinates: { start: coords.start, finish: coords.finish, customStart: coords.customStart, customFinish: coords.customFinish },
     timing: {
       start_utc_ms: state.startedAtMs,
@@ -6179,7 +6220,7 @@ document.getElementById('saveGhost').onclick = () => {
 };
 document.getElementById('captureStart').onclick = () => captureHere('start');
 document.getElementById('captureFinish').onclick = () => captureHere('finish');
-// V1.6.4 — shoulder capture buttons for the line-crossing detector.
+// V1.6.5 — shoulder capture buttons for the line-crossing detector.
 document.getElementById('captureStartShoulderA').onclick  = () => captureShoulder('start',  'a');
 document.getElementById('captureStartShoulderB').onclick  = () => captureShoulder('start',  'b');
 document.getElementById('captureFinishShoulderA').onclick = () => captureShoulder('finish', 'a');
