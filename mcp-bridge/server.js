@@ -209,18 +209,10 @@ function buildServer() {
   return server;
 }
 
-const allowedHosts = [
-  process.env.RAILWAY_PUBLIC_DOMAIN,
-  ...(process.env.MCP_ALLOWED_HOSTS || "").split(","),
-  "localhost",
-  "127.0.0.1",
-].filter(Boolean);
-
-const app = createMcpExpressApp({
-  host: "0.0.0.0",
-  allowedHosts,
-  allowedOrigins: ["chatgpt.com", "chat.openai.com"],
-});
+// This is a public remote server, so localhost DNS-rebinding allowlists are not
+// applicable. Access to the MCP route is instead protected by a 256-bit secret
+// path stored separately in Railway and ChatGPT.
+const app = createMcpExpressApp({ host: "0.0.0.0" });
 
 app.get("/health", (_req, res) => {
   res.status(200).json({
